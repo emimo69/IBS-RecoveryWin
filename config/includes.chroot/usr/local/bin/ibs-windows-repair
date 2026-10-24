@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+LOG=$(mktemp)
+trap 'rm -f -- "$LOG"' EXIT
+if pkexec /usr/local/sbin/ibs-windows-repair 2>"$LOG"; then exit 0; else
+    STATUS=$?
+    zenity --error --text="Analisi/backup EFI non riuscito ($STATUS).\n$(cat "$LOG")" || true
+    exit "$STATUS"
+fi

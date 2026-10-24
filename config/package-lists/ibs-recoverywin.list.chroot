@@ -33,3 +33,7 @@ wget
 xfce4
 xfce4-terminal
 zenity
+locales
+keyboard-configuration
+tzdata
+python3

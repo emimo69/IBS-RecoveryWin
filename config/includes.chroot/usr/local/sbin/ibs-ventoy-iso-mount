@@ -1,36 +1,36 @@
 #!/bin/bash
 set -euo pipefail
-
-DEST="/mnt/ibs-ventoy"
+DEST=/mnt/ibs-ventoy
 mkdir -p "$DEST"
-
 if mountpoint -q "$DEST"; then
+    SOURCE=$(findmnt -rn -M "$DEST" -o SOURCE)
+    [[ "$SOURCE" != /dev/mapper/ventoy ]] || { echo "La destinazione è il supporto Live, operazione annullata." >&2; exit 1; }
     printf '%s\n' "$DEST"
     exit 0
 fi
-
 while IFS= read -r DEV; do
-    LABEL=$(lsblk -no LABEL "$DEV" 2>/dev/null | head -1)
-    [ "${LABEL,,}" = "ventoy" ] || continue
-
-    PARENT=$(lsblk -no PKNAME "$DEV" | head -1)
-    [ -n "$PARENT" ] || continue
-
-    TRAN=$(lsblk -dn -o TRAN "/dev/$PARENT" | xargs)
-    [ "$TRAN" = "usb" ] || continue
-
-    # Se già montata, restituiamo il percorso esistente
-    MOUNTED=$(findmnt -rn -S "$DEV" -o TARGET | head -1)
-    if [ -n "$MOUNTED" ]; then
+    LABEL=$(lsblk -dnro LABEL "$DEV")
+    [[ "${LABEL,,}" == ventoy ]] || continue
+    PARENT=$(lsblk -dnro PKNAME "$DEV")
+    [[ -n "$PARENT" ]] || continue
+    [[ "$(lsblk -dnro TRAN "/dev/$PARENT")" == usb ]] || continue
+    MOUNTED=$(findmnt -rn -S "$DEV" -o TARGET || true)
+    if [[ -n "$MOUNTED" ]]; then
         printf '%s\n' "$MOUNTED"
         exit 0
     fi
-
-    mount -o ro,nosuid,nodev,noexec "$DEV" "$DEST"
-    printf '%s\n' "$DEST"
-    exit 0
-
+    if mount -o ro,nosuid,nodev,noexec "$DEV" "$DEST"; then
+        printf '%s\n' "$DEST"
+        exit 0
+    fi
+    # Ventoy's live DM mapping may hold the partition exclusively. A separate
+    # read-only loop view avoids removing or modifying that boot mapping.
+    LOOP=$(losetup --find --show --read-only "$DEV") || continue
+    if mount -o ro,nosuid,nodev,noexec "$LOOP" "$DEST"; then
+        printf '%s\n' "$DEST"
+        exit 0
+    fi
+    losetup -d "$LOOP"
 done < <(lsblk -rnp -o NAME,TYPE | awk '$2=="part"{print $1}')
-
-echo "Partizione Ventoy non trovata" >&2
+echo "ISO Ventoy non accessibili. Il supporto Live non è stato modificato; scegliere una ISO locale o il NAS." >&2
 exit 1

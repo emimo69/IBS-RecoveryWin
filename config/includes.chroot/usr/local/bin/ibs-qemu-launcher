@@ -1,4 +1,7 @@
 #!/bin/bash
+set -euo pipefail
+
+export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
 
 SCELTA=$(zenity --list --radiolist \
   --title="IBS-RecoveryWin - QEMU Manager" \
@@ -7,7 +10,7 @@ SCELTA=$(zenity --list --radiolist \
   --column="Seleziona" --column="Operazione" \
   TRUE "Avvia disco fisico - Modalita protetta" \
   FALSE "Avvia disco fisico - Scrittura diretta" \
-  FALSE "Carica ISO - USB Ventoy o NAS QNAP")
+  FALSE "Carica ISO - USB Ventoy o NAS QNAP") || exit 0
 
 [ -n "$SCELTA" ] || exit 0
 
@@ -22,8 +25,16 @@ case "$SCELTA" in
 
         [ -n "$FIRMWARE" ] || exit 0
 
-        pkexec /usr/local/sbin/ibs-qemu-disk-session "$DISK" "$FIRMWARE"
-        exit $?
+        LOG=$(mktemp)
+        if pkexec /usr/local/sbin/ibs-qemu-disk-session "$DISK" "$FIRMWARE" 2>"$LOG"; then
+            rm -f -- "$LOG"
+        else
+            STATUS=$?
+            zenity --error --title="IBS-RecoveryWin - QEMU" --text="Avvio non riuscito (codice $STATUS).\n$(cat "$LOG")" || true
+            rm -f -- "$LOG"
+            exit "$STATUS"
+        fi
+        exit 0
         ;;
     "Avvia disco fisico - Scrittura diretta")
         DISK=$(/usr/local/bin/ibs-disk-select) || exit 1
@@ -53,8 +64,16 @@ Confermi di voler procedere?" || exit 0
 
         [ -n "$FIRMWARE" ] || exit 0
 
-        pkexec /usr/local/sbin/ibs-qemu-disk-direct "$DISK" "$FIRMWARE"
-        exit $?
+        LOG=$(mktemp)
+        if pkexec /usr/local/sbin/ibs-qemu-disk-direct "$DISK" "$FIRMWARE" 2>"$LOG"; then
+            rm -f -- "$LOG"
+        else
+            STATUS=$?
+            zenity --error --title="IBS-RecoveryWin - QEMU" --text="Avvio non riuscito (codice $STATUS).\n$(cat "$LOG")" || true
+            rm -f -- "$LOG"
+            exit "$STATUS"
+        fi
+        exit 0
         ;;
     "Carica ISO - USB Ventoy o NAS QNAP")
         exec /usr/local/bin/ibs-qemu-iso

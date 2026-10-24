@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+printf 'it_IT.UTF-8 UTF-8\n' > /etc/locale.gen
+locale-gen
+update-locale LANG=it_IT.UTF-8 LANGUAGE=it_IT:it
+ln -snf /usr/share/zoneinfo/Europe/Rome /etc/localtime

@@ -5,3 +5,8 @@ systemctl enable ibs-teamviewer-auto.service
 systemctl enable teamviewerd.service
 systemctl enable lightdm.service
 
+
+# Do not expose the Live's default account on the network.
+getent group ibs-remote >/dev/null || groupadd --system ibs-remote
+systemctl disable ssh.service
+systemctl disable ssh.socket 2>/dev/null || true

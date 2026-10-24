@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Ripara avvio Windows
-Comment=Avvia WinRE per riparare il boot Windows
-Exec=/usr/local/bin/ibs-qemu-iso
+Comment=Analisi sola lettura e backup EFI prima della riparazione in WinRE
+Exec=/usr/local/bin/ibs-windows-repair
 Icon=utilities-terminal
 Terminal=false

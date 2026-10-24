@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+LOG=$(mktemp)
+trap 'rm -f -- "$LOG"' EXIT
+if pkexec /usr/local/sbin/ibs-ssh-enable 2>"$LOG"; then exit 0; else
+    STATUS=$?
+    zenity --error --text="Configurazione SSH non riuscita ($STATUS).\n$(cat "$LOG")" || true
+    exit "$STATUS"
+fi
