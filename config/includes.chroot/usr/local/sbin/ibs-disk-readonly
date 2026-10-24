@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+DISK="${1:-}"
+[ -b "$DISK" ] || exit 1
+
+DISK=$(/usr/local/sbin/ibs-disk-check "$DISK") || exit 1
+
+NAME="ibsro-$(basename "$DISK")-$$"
+SECTORS=$(blockdev --getsz "$DISK")
+
+# Vista separata del disco fisico tramite device mapper
+echo "0 $SECTORS linear $DISK 0" |
+    dmsetup create "$NAME" --readonly
+
+DEV="/dev/mapper/$NAME"
+
+[ -b "$DEV" ] || {
+    dmsetup remove "$NAME" 2>/dev/null || true
+    exit 1
+}
+
+printf '%s\n' "$DEV"

@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+# L'utente admin viene creato all'avvio da live-config.
+# Il nome è specificato in bootappend-live.
+# Non creare utenti durante la compilazione.
+
+exit 0

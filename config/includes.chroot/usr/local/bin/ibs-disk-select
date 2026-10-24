@@ -1,0 +1,43 @@
+#!/bin/bash
+set -euo pipefail
+
+ROWS=()
+
+while IFS= read -r DEV; do
+    [ -b "$DEV" ] || continue
+
+    # Escludiamo i supporti rimovibili, inclusa Ventoy.
+    RM=$(lsblk -dn -o RM "$DEV" | xargs)
+    [ "$RM" = "0" ] || continue
+
+    # Escludiamo dischi e partizioni già montati.
+    if lsblk -nr -o MOUNTPOINTS "$DEV" | grep -q '[^[:space:]]'; then
+        continue
+    fi
+
+    MODEL=$(lsblk -dn -o MODEL "$DEV" | xargs)
+    SIZE=$(lsblk -dn -o SIZE "$DEV" | xargs)
+    SERIAL=$(lsblk -dn -o SERIAL "$DEV" | xargs)
+
+    ROWS+=(FALSE "$DEV" "$SIZE" "${MODEL:-Sconosciuto}" "${SERIAL:-N/D}")
+
+done < <(lsblk -dnpo NAME,TYPE | awk '$2=="disk"{print $1}')
+
+if [ "${#ROWS[@]}" -eq 0 ]; then
+    zenity --warning \
+      --title="IBS-RecoveryWin" \
+      --text="Nessun disco fisico disponibile."
+    exit 0
+fi
+
+zenity --list --radiolist \
+    --title="IBS-RecoveryWin - Selezione disco fisico" \
+    --text="Seleziona il disco da utilizzare con QEMU:" \
+    --width=950 --height=450 \
+    --column="Seleziona" \
+    --column="Dispositivo" \
+    --column="Capacità" \
+    --column="Modello" \
+    --column="Seriale" \
+    --print-column=2 \
+    "${ROWS[@]}"

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+FILE=/mnt/teamviewer.txt
+
+if [ ! -f "$FILE" ]; then
+    zenity --info \
+      --title="IBS-RecoveryWin - TeamViewer" \
+      --text="TeamViewer si sta inizializzando. Riprova tra qualche secondo."
+    exit 0
+fi
+
+mousepad "$FILE"

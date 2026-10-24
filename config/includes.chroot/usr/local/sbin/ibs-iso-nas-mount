@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+NAS="//192.168.20.123/Public"
+DEST="/mnt/ibs-iso"
+
+mkdir -p "$DEST"
+
+if mountpoint -q "$DEST"; then
+    exit 0
+fi
+
+mount -t cifs "$NAS" "$DEST" \
+    -o guest,vers=3.0,ro,nosuid,nodev,noexec
+

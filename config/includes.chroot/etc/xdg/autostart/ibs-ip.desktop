@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=IBS RecoveryWin IP
+Exec=conky -c /etc/ibs-recoverywin/conky.conf
+Terminal=false
+OnlyShowIn=XFCE;

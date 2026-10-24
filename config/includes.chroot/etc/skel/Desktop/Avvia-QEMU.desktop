@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Avvia Windows / Carica ISO
+Comment=IBS-RecoveryWin QEMU Manager
+Exec=/usr/local/bin/ibs-qemu-launcher
+Icon=computer
+Terminal=false

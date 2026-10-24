@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+for cmd in qemu-system-x86_64 qemu-img dmsetup blockdev lsblk; do
+    command -v "$cmd" >/dev/null 2>&1 || {
+        echo "Comando mancante: $cmd" >&2
+        exit 1
+    }
+done
+
+[ -e /dev/mapper/control ] || {
+    echo "Device Mapper non disponibile." >&2
+    exit 1
+}
+
+[ -f /usr/share/OVMF/OVMF_CODE_4M.fd ] || {
+    echo "Firmware UEFI OVMF mancante." >&2
+    exit 1
+}
+
+echo "Prerequisiti QEMU verificati."

@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euo pipefail
+echo "Modalita protetta non ancora abilitata: controlli disco in preparazione." >&2
+exit 1
+
+
+DISK="${1:-}"
+
+[ -n "$DISK" ] || exit 1
+
+# Controllo preliminare del disco
+DISK=$(/usr/local/sbin/ibs-disk-check "$DISK") || {
+    echo "Disco non autorizzato." >&2
+    exit 1
+}
+
+# Creiamo una directory temporanea per la sessione QEMU
+WORKDIR=$(mktemp -d /tmp/ibs-qemu-safe.XXXXXX)
+
+cleanup() {
+    rm -rf -- "$WORKDIR"
+}
+trap cleanup EXIT
+
+# Overlay temporaneo: il disco fisico viene aperto in sola lettura.
+qemu-img create -f qcow2 -F raw \
+    -b "$DISK" "$WORKDIR/overlay.qcow2"
+
+# Il file overlay viene aperto in lettura/scrittura.
+# Il backing file fisico deve essere aperto in sola lettura.
+
+
+ARGS=(
+    -machine q35
+    -m 4096
+    -smp 2
+    -drive "file=$WORKDIR/overlay.qcow2,format=qcow2,if=ide"
+    -nic user,model=e1000
+    -vga std
+)
+
+if [ -e /dev/kvm ]; then
+    ARGS+=(-accel kvm)
+else
+    ARGS+=(-accel tcg)
+fi
+
+qemu-system-x86_64 "${ARGS[@]}"

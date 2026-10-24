@@ -1,0 +1,61 @@
+#!/bin/bash
+set -euo pipefail
+
+# Disco fisico da proteggere, passato dal launcher.
+DISK="${1:-}"
+
+[ -n "$DISK" ] && [ -b "$DISK" ] || {
+    zenity --error --text="Disco originale non specificato."
+    exit 1
+}
+
+# Selezione di una cartella già montata e scrivibile.
+DEST=$(zenity --file-selection --directory \
+    --title="IBS-RecoveryWin - Scegli disco di lavoro per QEMU") || exit 1
+
+[ -d "$DEST" ] && [ -w "$DEST" ] || {
+    zenity --error --text="La cartella scelta non è scrivibile."
+    exit 1
+}
+
+# Vietato utilizzare un percorso in RAM.
+FSTYPE=$(findmnt -T "$DEST" -n -o FSTYPE | head -1)
+
+case "$FSTYPE" in
+    tmpfs|ramfs|overlay)
+        zenity --error \
+            --text="Questa destinazione non è idonea per l'overlay QEMU."
+        exit 1
+        ;;
+esac
+
+# Vietato utilizzare la condivisione delle ISO.
+case "$(realpath -m "$DEST")" in
+    /mnt/ibs-iso|/mnt/ibs-iso/*|/mnt/ibs-ventoy|/mnt/ibs-ventoy/*)
+        zenity --error \
+            --text="Non utilizzare Ventoy o la cartella ISO del NAS."
+        exit 1
+        ;;
+esac
+
+# Blocca destinazioni appartenenti al disco sorgente.
+SOURCE=$(findmnt -T "$DEST" -n -o SOURCE | head -1)
+if [[ "$SOURCE" == /dev/* ]]; then
+    PARENT=$(lsblk -spno NAME "$SOURCE" 2>/dev/null || true)
+    if grep -Fxq -- "$DISK" <<< "$PARENT"; then
+        zenity --error \
+            --text="Non puoi usare il disco Windows originale come area temporanea."
+        exit 1
+    fi
+fi
+
+# Richiediamo almeno 20 GiB liberi.
+FREE_KB=$(df -Pk "$DEST" | awk 'END {print $4}')
+
+if (( FREE_KB < 20 * 1024 * 1024 )); then
+    zenity --error \
+        --text="Servono almeno 20 GB liberi sul disco di lavoro."
+    exit 1
+fi
+
+printf '%s\n' "$DEST"

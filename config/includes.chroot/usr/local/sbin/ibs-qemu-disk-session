@@ -1,0 +1,106 @@
+#!/bin/bash
+set -euo pipefail
+
+DISK="${1:-}"
+MODE="${2:-uefi}"
+
+case "$MODE" in
+    uefi|legacy) ;;
+    *) echo "Firmware non valido" >&2; exit 1 ;;
+esac
+
+[ -b "$DISK" ] || exit 1
+
+/usr/local/sbin/ibs-qemu-preflight
+
+# Controlliamo nuovamente il disco prima di usarlo.
+DISK=$(/usr/local/sbin/ibs-disk-check "$DISK") || exit 1
+
+# Destinazione temporanea, indipendente dalla modalità USB/PXE.
+# Prima prova il NAS; se non disponibile, richiede una scelta locale.
+OVERLAY_ROOT=""
+
+# Prova il NAS, senza impedire l'uso fuori sede.
+/usr/local/sbin/ibs-overlay-nas-mount || true
+
+if mountpoint -q /mnt/ibs-overlay &&
+   [ "$(findmnt -n -o FSTYPE -T /mnt/ibs-overlay)" = "cifs" ]; then
+    OVERLAY_ROOT="/mnt/ibs-overlay"
+else
+    OVERLAY_ROOT=$(/usr/local/bin/ibs-overlay-select "$DISK") || exit 1
+fi
+
+# Non basta che la directory esista: deve essere scrivibile
+# e avere spazio sufficiente.
+[ -d "$OVERLAY_ROOT" ] && [ -w "$OVERLAY_ROOT" ] || {
+    echo "Destinazione overlay non scrivibile." >&2
+    exit 1
+}
+
+FREE_KB=$(df -Pk "$OVERLAY_ROOT" | awk 'END {print $4}')
+
+if (( FREE_KB < 20 * 1024 * 1024 )); then
+    echo "Servono almeno 20 GiB liberi per l'overlay." >&2
+    exit 1
+fi
+
+WORKDIR=$(mktemp -d "$OVERLAY_ROOT/ibs-qemu.XXXXXXXX")
+RODEV=""
+
+cleanup() {
+    local name=""
+
+    if [ -n "${RODEV:-}" ]; then
+        name=$(basename "$RODEV")
+
+        if ! dmsetup remove "$name" 2>/dev/null; then
+            echo "ATTENZIONE: Device Mapper ancora attivo: $RODEV" >&2
+            echo "Overlay conservato in: $WORKDIR" >&2
+            return 1
+        fi
+    fi
+
+    if [ -n "${WORKDIR:-}" ] && [ -d "$WORKDIR" ]; then
+        rm -rf -- "$WORKDIR"
+    fi
+}
+
+trap cleanup EXIT
+
+# Creiamo la vista di sola lettura.
+RODEV=$(/usr/local/sbin/ibs-disk-readonly "$DISK")
+
+[ -b "$RODEV" ] || exit 1
+
+# Le modifiche della VM finiscono nell'overlay.
+qemu-img create -f qcow2 -F raw \
+    -b "$RODEV" "$WORKDIR/overlay.qcow2"
+
+ARGS=(
+    -machine q35
+    -m 4096
+    -smp 2
+    -drive "file=$WORKDIR/overlay.qcow2,format=qcow2,if=ide"
+    -nic user,model=e1000
+    -vga std
+)
+
+if [ -e /dev/kvm ]; then
+    ARGS+=(-accel kvm)
+else
+    ARGS+=(-accel tcg)
+fi
+
+if [ "$MODE" = "uefi" ]; then
+    CODE="/usr/share/OVMF/OVMF_CODE_4M.fd"
+    VARS="/usr/share/OVMF/OVMF_VARS_4M.fd"
+
+    cp "$VARS" "$WORKDIR/ovmf-vars.fd"
+
+    ARGS+=(
+        -drive "if=pflash,format=raw,readonly=on,file=$CODE"
+        -drive "if=pflash,format=raw,file=$WORKDIR/ovmf-vars.fd"
+    )
+fi
+
+qemu-system-x86_64 "${ARGS[@]}"

@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+
+MODE="${1:-}"
+WORKDIR="${2:-}"
+
+[ -d "$WORKDIR" ] || exit 1
+
+case "$MODE" in
+    uefi)
+        CODE="/usr/share/OVMF/OVMF_CODE_4M.fd"
+        VARS="/usr/share/OVMF/OVMF_VARS_4M.fd"
+
+        [ -f "$CODE" ] && [ -f "$VARS" ] || exit 1
+
+        cp "$VARS" "$WORKDIR/ovmf-vars.fd"
+
+        printf '%s\n' \
+            "-drive" "if=pflash,format=raw,readonly=on,file=$CODE" \
+            "-drive" "if=pflash,format=raw,file=$WORKDIR/ovmf-vars.fd"
+        ;;
+
+    legacy)
+        exit 0
+        ;;
+
+    *)
+        exit 1
+        ;;
+esac

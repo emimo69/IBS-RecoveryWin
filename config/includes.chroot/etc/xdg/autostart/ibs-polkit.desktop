@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=IBS-RecoveryWin - Autenticazione
+Comment=Agente autenticazione per le operazioni amministrative
+Exec=/usr/lib/polkit-mate/polkit-mate-authentication-agent-1
+Terminal=false
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true
