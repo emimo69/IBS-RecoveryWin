@@ -62,7 +62,8 @@ for token in ('https://download.teamviewer.com/download/linux/teamviewer_amd64.d
     need(token in hook, 'hook installazione incompleto: ' + token)
 unit = entry('etc/systemd/system/ibs-remote.service', 'Unit')
 need('live-config.service' in unit['After'], 'servizio remoto prima della creazione utente')
-need('teamviewerd.service' in unit['Requires'], 'daemon TeamViewer non richiesto')
+need('teamviewerd.service' in unit['Wants'], 'daemon TeamViewer non avviato')
+need('teamviewerd.service' not in unit.get('Requires', ''), 'Requires ferma IBS durante passwd vendor')
 for launcher, command in (('ibs-remote', 'conky -c /etc/conky/ibs.conf'),
                           ('ibs-teamviewer', 'teamviewer'),
                           ('ibs-desktop-launcher', '/usr/local/bin/ibs-desktop-launcher')):

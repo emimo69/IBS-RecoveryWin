@@ -2,6 +2,7 @@
 """Execute a path-relocated copy with fake CLI tools; no daemon or /mnt writes."""
 from pathlib import Path
 import os
+import configparser
 import subprocess
 import tempfile
 import unittest
@@ -63,6 +64,16 @@ esac''',
                 self.assertNotIn('test-session-password', content)
                 self.assertNotIn('inizializzazione in corso', content)
             return content
+
+    def test_vendor_stop_does_not_propagate_to_ibs(self):
+        unit = configparser.ConfigParser(interpolation=None)
+        unit.read(PROJECT / 'config/includes.chroot/etc/systemd/system/ibs-remote.service')
+        dependencies = unit['Unit']
+        self.assertIn('teamviewerd.service', dependencies['Wants'].split())
+        self.assertIn('teamviewerd.service', dependencies['After'].split())
+        self.assertIn('live-config.service', dependencies['After'].split())
+        for kind in ('Requires', 'BindsTo', 'PartOf'):
+            self.assertNotIn('teamviewerd.service', dependencies.get(kind, '').split())
 
     def test_success(self):
         self.run_case(success=True)

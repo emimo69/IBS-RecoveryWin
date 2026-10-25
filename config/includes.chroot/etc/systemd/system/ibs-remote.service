@@ -1,7 +1,7 @@
 [Unit]
 Description=IBS credenziali di assistenza live
-Wants=network-online.target
-Requires=teamviewerd.service
+Wants=network-online.target teamviewerd.service
+# The vendor passwd command stops/starts the daemon: do not propagate its stop.
 After=live-config.service network-online.target teamviewerd.service
 
 [Service]
