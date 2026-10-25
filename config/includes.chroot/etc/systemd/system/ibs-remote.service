@@ -1,0 +1,15 @@
+[Unit]
+Description=IBS credenziali di assistenza live
+Wants=network-online.target
+Requires=teamviewerd.service
+After=live-config.service network-online.target teamviewerd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ibs-remote
+RemainAfterExit=yes
+TimeoutStartSec=300
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

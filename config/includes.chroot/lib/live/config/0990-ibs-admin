@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+printf 'admin:admin\n' | chpasswd
+usermod -aG sudo admin
+ssh-keygen -A

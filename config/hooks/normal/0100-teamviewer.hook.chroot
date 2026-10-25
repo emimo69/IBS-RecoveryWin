@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+# Executed only inside the future live-build chroot.
+curl --fail --location --retry 3 --proto '=https' --proto-redir '=https' \
+ https://download.teamviewer.com/download/linux/teamviewer_amd64.deb \
+ -o /tmp/teamviewer_amd64.deb
+[ "$(dpkg-deb -f /tmp/teamviewer_amd64.deb Architecture)" = amd64 ]
+apt-get update
+apt-get install -y /tmp/teamviewer_amd64.deb
+rm /tmp/teamviewer_amd64.deb
+systemctl enable ssh.service NetworkManager.service teamviewerd.service ibs-remote.service
+# Host keys must be unique for each live boot.
+rm -f /etc/ssh/ssh_host_*key /etc/ssh/ssh_host_*key.pub

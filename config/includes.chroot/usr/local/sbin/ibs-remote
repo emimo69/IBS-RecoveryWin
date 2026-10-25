@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+export LC_ALL=C
+install -d -m 0750 -o root -g admin /run/ibs
+info=/run/ibs/teamviewer.txt
+publish() {
+    printf '%s\n' "$1" > "$info.tmp"
+    chown root:admin "$info.tmp"
+    chmod 0640 "$info.tmp"
+    mv "$info.tmp" "$info"
+}
+publish 'TeamViewer: inizializzazione in corso...'
+password=$(openssl rand -hex 8)
+# TeamViewer requires acceptance of its license before unattended use.
+# Keep any existing vendor settings intact.
+install -d -m 0755 /etc/teamviewer
+conf=/etc/teamviewer/global.conf
+touch "$conf"
+if ! grep -q '^\[int32\] EulaAccepted = 1$' "$conf"; then
+    sed -i '/^\[int32\] EulaAccepted = /d' "$conf"
+    printf '\n[int32] EulaAccepted = 1\n' >> "$conf"
+    systemctl restart teamviewerd.service
+fi
+ready=false
+for attempt in $(seq 1 60); do
+    if teamviewer passwd "$password" >/dev/null 2>&1; then
+        ready=true
+        break
+    fi
+    sleep 3
+done
+if [ "$ready" != true ]; then
+    publish 'TeamViewer: configurazione password fallita. Consultare journalctl -u ibs-remote.'
+    exit 1
+fi
+for attempt in $(seq 1 60); do
+    id=$(teamviewer info 2>/dev/null | sed -n 's/.*TeamViewer ID:[[:space:]]*\([0-9][0-9 ]*\).*/\1/p' | tr -d ' ')
+    if [ -n "$id" ] && [ "$id" != 0 ]; then
+        publish "TeamViewer ID: $id
+Password: $password
+
+SSH: admin / admin
+ID assegnato; connessione remota da verificare."
+        exit 0
+    fi
+    sleep 1
+done
+publish 'TeamViewer: ID non disponibile. Controllare rete e journalctl -u ibs-remote; riavviare il servizio per riprovare.'
+exit 1

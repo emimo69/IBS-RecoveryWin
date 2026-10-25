@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=TeamViewer
+Exec=teamviewer
+OnlyShowIn=XFCE;
+Terminal=false

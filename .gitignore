@@ -1,8 +1,11 @@
 binary/
 chroot/
 cache/
-auto/
 *.iso
 *.qcow2
 *.img
 *.log
+
+.build/
+.build.lock
+/local/
