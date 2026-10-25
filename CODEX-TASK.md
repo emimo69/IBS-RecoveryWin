@@ -1,15 +1,20 @@
-# Incarico esecutivo Codex — IBS-RecoveryWin 1.0
+# CODEX-TASK.md — Incarico attuale: preparare controllo automatico incarichi GitHub
 
-**ISTRUZIONE OPERATIVA:** Quando l'utente scrive soltanto «Leggi CODEX-TASK.md», devi leggere questo file ed ESEGUIRE tutte le attività qui descritte, senza attendere un secondo comando e senza limitarti a riassumerlo. Leggi anche AGENTS.md. Se ci sono modifiche già presenti, controllale prima di intervenire; evita duplicazioni. Non avviare compilazioni ISO.
+**DA ESEGUIRE** quando l'utente dice «Leggi CODEX-TASK.md». Leggi prima AGENTS.md. Opera esclusivamente in /opt/ibs-recoverywin-1.0, ramo ibs-recoverywin-1.0. Il presente incarico sostituisce quello precedente (già completato). Non modificare altri progetti.
 
-Leggi `AGENTS.md` e applica questa correzione **solo** nel ramo `ibs-recoverywin-1.0`.
+## Obiettivo
+Preparare (NON attivare ancora) un servizio systemd per la Debian di sviluppo che controlli il repository GitHub ogni 2 minuti e, quando un nuovo CODEX-TASK.md è stato pubblicato da ChatGPT, possa affidarlo a Codex in esecuzione non interattiva. Così non sarà più necessario digitare ogni incarico in PuTTY.
 
-1. Il file di assistenza deve essere esattamente `/mnt/teamviewer.txt`, non `/run/ibs/teamviewer.txt`. Controlla e aggiorna tutti i riferimenti (script, Conky, documentazione e servizi).
-2. Il file deve essere creato automaticamente all'avvio con TeamViewer ID reale, password effettivamente impostata nella sessione corrente e indirizzo IP locale. Se non è pronto, mostra un messaggio comprensibile senza presentare credenziali errate.
-3. L'utente `admin` deve poter leggere `/mnt/teamviewer.txt` senza sudo.
-4. Crea sul desktop XFCE dell'utente admin un launcher `TeamViewer ID e Password` che apra `/mnt/teamviewer.txt` con Mousepad. Assicurati che sia eseguibile e attendibile nel desktop XFCE.
-5. Mantieni funzionanti login `admin/admin`, SSH e il resto della Live; non introdurre cambiamenti non richiesti.
-6. Verifica staticamente i percorsi, i permessi previsti e la sintassi degli script. Non affermare che TeamViewer funziona realmente senza collaudo.
-7. Esegui commit e push su GitHub sul ramo `ibs-recoverywin-1.0`, conferma l'hash remoto uguale all'hash locale e riporta i file modificati.
+## Requisiti precisi
+1. Scrivi uno script di controllo robusto e un servizio + timer systemd **installabili**, ma non installarli né abilitarli in questa fase. Fornisci script di installazione e disattivazione semplici.
+2. Monitora SOLO il file CODEX-TASK.md sul ramo ibs-recoverywin-1.0 nel repository emimo69/IBS-RecoveryWin. Usa git fetch o GitHub CLI autenticata; non sovrascrivere modifiche locali non committate.
+3. Rileva nuovi incarichi tramite identificativo stabile del contenuto (blob hash di CODEX-TASK.md); registra in uno stato persistente il task già completato. Non rilanciare a ogni commit di Codex se CODEX-TASK.md resta invariato.
+4. Impedisci esecuzioni concorrenti con flock; cattura log separati e risultato/exit code. In caso di errore non entrare in un ciclo continuo: lascia una segnalazione leggibile e richiedi intervento manuale o una politica di retry controllata.
+5. Il runner deve eseguire Codex con directory di lavoro limitata al nuovo progetto e istruzioni operative di AGENTS.md; rispetta i permessi richiesti dal programma ed evita di usare opzioni di bypass delle approvazioni o sandbox disabilitata. Se non è fattibile in modo completamente non interattivo senza elevare troppo i permessi, documentalo e predisponi una modalità assistita invece di aggirare le autorizzazioni.
+6. Non leggere né pubblicare file di credenziali, chiavi, token o contenuti di /mnt/teamviewer.txt nei log.
+7. Non autorizzare automaticamente build, cancellazioni, montaggi/scritture su dischi fisici o modifiche ad altri progetti. Il servizio deve essere **disabilitato di default** fino a nostra verifica.
+8. Aggiungi controlli statici per timer, flock, deduplicazione e invocazione Codex; eseguili se possibile senza avviare il timer e senza modificare la macchina.
+9. Controlla anche, con analisi statica dei sorgenti già pubblicati, che la futura Live abbia l'utente admin/admin, SSH abilitato e TeamViewer con /mnt/teamviewer.txt; segnala difetti veri senza modificare altre funzioni in questo incarico.
+10. Esegui commit e push delle modifiche sul ramo ibs-recoverywin-1.0; verifica la coincidenza dell'hash locale/remoto. Riporta commit, file e limiti reali dei test.
 
-**Non compilare la ISO. Non toccare dischi fisici, altri progetti o i vecchi rami.**
+**NON compilare ISO. NON attivare il timer. NON eseguire modifiche a dischi o alle versioni precedenti.**
