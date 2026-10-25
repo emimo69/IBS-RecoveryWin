@@ -9,6 +9,19 @@ import subprocess
 import sys
 import time
 
+
+def classify_error(message):
+    value = message.lower()
+    if any(x in value for x in ('rate_limit', 'rate limit', '429', 'quota', 'usage limit')):
+        return 'quota'
+    if any(x in value for x in ('permission denied', 'operation not permitted', 'read-only file system', 'sandbox', 'bubblewrap', 'bwrap:')):
+        return 'sandbox_permessi'
+    if any(x in value for x in ('not logged in', 'unauthorized', 'authentication', 'login required', 'invalid token')):
+        return 'autenticazione'
+    if any(x in value for x in ('dns', 'network unreachable', 'connection refused', 'connection timed out', 'connection error')):
+        return 'rete'
+    return 'non_classificato'
+
 PROJECT = Path('/opt/ibs-recoverywin-1.0')
 REMOTE = 'https://github.com/emimo69/IBS-RecoveryWin.git'
 BRANCH = 'ibs-recoverywin-1.0'
@@ -90,15 +103,17 @@ class Runner:
         child = subprocess.Popen(['codex', '--ask-for-approval', 'never', 'exec',
                                   '--sandbox', 'workspace-write', '-C', str(self.project),
                                   '--json', prompt], stdout=subprocess.PIPE,
-                                 stderr=subprocess.DEVNULL, start_new_session=True,
+                                 stderr=subprocess.PIPE, start_new_session=True,
                                  pass_fds=(self.lock.fileno(),))
         import selectors
         selector = selectors.DefaultSelector()
         selector.register(child.stdout, selectors.EVENT_READ)
+        selector.register(child.stderr, selectors.EVENT_READ)
         os.set_blocking(child.stdout.fileno(), False)
         deadline = time.monotonic() + SESSION_SECONDS
         quota = False
-        buffer = b''
+        buffers = {child.stdout.fileno(): b'', child.stderr.fileno(): b''}
+        cause = 'non_classificato'
 
         def stop(signum=None, frame=None):
             try:
@@ -121,27 +136,25 @@ class Runner:
                     if not chunk:
                         selector.unregister(key.fileobj)
                         continue
-                    buffer += chunk
-                    while b'\n' in buffer:
-                        line, buffer = buffer.split(b'\n', 1)
-                        # Inspect errors only; never save message text or transcripts.
-                        try:
-                            event = json.loads(line)
-                            if event.get('type') in ('error', 'turn.failed'):
-                                value = json.dumps(event).lower()
-                                quota |= any(x in value for x in (
-                                    'rate_limit', 'rate limit', '429', 'quota', 'usage limit'))
-                        except (ValueError, AttributeError):
-                            pass
-                    if len(buffer) > 1048576:
-                        buffer = b''
+                    data = buffers.get(key.fd, b'') + chunk
+                    while b'\n' in data:
+                        line, data = data.split(b'\n', 1)
+                        # Classify only: never save raw errors, model output or secrets.
+                        category = classify_error(line.decode('utf-8', 'replace'))
+                        if category != 'non_classificato':
+                            cause = category
+                            quota |= category == 'quota'
+                    buffers[key.fd] = data[-4096:]
+            self.last_cause = cause
             return child.wait(timeout=max(1, deadline-time.monotonic())), quota
         except (TimeoutError, subprocess.TimeoutExpired, InterruptedError):
             stop()
+            self.last_cause = 'timeout_o_interruzione'
             return 124, False
         finally:
             selector.close()
             child.stdout.close()
+            child.stderr.close()
             for sig, handler in previous.items():
                 signal.signal(sig, handler)
 
@@ -214,11 +227,13 @@ class Runner:
                       remote[0] == self.git('rev-parse', 'HEAD') and
                       self.git('rev-parse', 'HEAD:CODEX-TASK.md') == blob)
                 record.update(status='success' if ok else 'failed', exit_code=rc,
-                              reason='verifica_git' if not ok else 'git_e_verify_config_verificati')
+                              reason=('codex_' + getattr(self, 'last_cause', 'non_classificato') if rc != 0
+                                      else 'verifica_git' if not ok else 'git_e_verify_config_verificati'))
         except Exception:
             record.update(status='failed', exit_code=125, reason='verifica_o_avvio_fallito')
         self.write('runs/' + blob + '.json', record)
-        self.status(record['status'], task=blob, exit_code=record['exit_code'])
+        self.status(record['status'], task=blob, exit_code=record['exit_code'],
+                    reason=record.get('reason', 'nessuna'))
 
     def run(self, mode):
         self.lock = (self.state / 'lock').open('a')
