@@ -48,3 +48,23 @@ L'assegnazione dell'ID e l'esito della CLI non provano una connessione remota.
 
 Verifica statica del launcher basata sul [meccanismo di attendibilità XFCE](https://developer.xfce.org/libxfce4util/libxfce4util-GIO-Extensions.html).
 La creazione e l'attendibilità nel desktop richiedono ancora collaudo nella live.
+
+## Verifica TeamViewer senza daemon
+
+`python3 scripts/test-remote.py` esegue una copia dello script con percorsi
+spostati in una directory temporanea del progetto e comandi CLI simulati.
+Copre successo, colori ANSI/CR e ID separati da spazi, testo non numerico,
+ID nullo, output ambiguo, info con exit code fallito, password fallita,
+errore imprevisto e assenza IP. Verifica anche modo 0640, richiesta root:admin,
+assenza di credenziali nei flussi stdout/stderr e messaggi finali di errore.
+L'effettiva appartenenza al gruppo admin è verificabile solo al boot.
+
+Il parser accetta una sola riga etichettata `TeamViewer ID:`, con intero positivo
+anche separato da spazi/tab; rimuove colori ANSI CSI e CR. Rifiuta suffissi,
+righe multiple e output di un comando fallito. Formati o traduzioni diversi
+richiedono un campione reale della CLI; LC_ALL=C richiede l'output inglese.
+Il gestore EXIT sostituisce il file in caso di errore, mantenendo exit code,
+scrittura atomica e permessi. Non può gestire SIGKILL o un filesystem che
+impedisce la scrittura; questi casi richiedono il controllo del servizio.
+I test simulati non dimostrano assegnazione ID, validità reale della password,
+accettazione licenza o connessione TeamViewer: serve collaudo nella Live.

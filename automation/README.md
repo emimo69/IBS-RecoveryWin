@@ -72,9 +72,6 @@ Non è provato il funzionamento reale del servizio o della Live.
 Analisi Live: i sorgenti impostano admin/admin, autologin LightDM, abilitazione
 SSH nel chroot e generazione chiavi al boot. TeamViewer usa /mnt/teamviewer.txt,
 pubblicazione atomica root:admin 0640 e launcher Mousepad nella sessione XFCE.
-Difetto rilevato, lasciato invariato perché fuori incarico: il parser ID nello
-script ibs-remote accetta un prefisso numerico seguito da testo e la pipeline
-non conserva l'exit code di `teamviewer info`; andrebbe irrigidito prima del
-collaudo. Inoltre i messaggi di errore imprevisto possono restare su
-“inizializzazione in corso”, perché manca una gestione EXIT generale.
+I difetti del parser ID e della gestione EXIT rilevati in questo incarico sono
+stati corretti nel successivo task TeamViewer; vedere README.md e test-remote.py.
 Non deduciamo dai soli sorgenti che SSH o TeamViewer siano operativi.

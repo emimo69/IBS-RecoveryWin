@@ -1,7 +1,6 @@
 #!/bin/sh
 set -eu
 export LC_ALL=C
-install -d -m 0755 /mnt
 info=/mnt/teamviewer.txt
 publish() {
     printf '%s\n' "$1" > "$info.tmp"
@@ -9,9 +8,22 @@ publish() {
     chmod 0640 "$info.tmp"
     mv "$info.tmp" "$info"
 }
+# EXIT also handles unexpected failures under set -e. Never print credentials.
+error_message='TeamViewer: errore imprevisto durante la preparazione. Consultare journalctl -u ibs-remote e riavviare il servizio.'
+on_exit() {
+    rc=$?
+    trap - EXIT HUP INT TERM
+    if [ "$rc" -ne 0 ]; then
+        set +e
+        publish "$error_message" 2>/dev/null
+    fi
+    exit "$rc"
+}
+trap on_exit EXIT
+trap 'error_message="TeamViewer: preparazione interrotta; riavviare il servizio."; exit 1' HUP INT TERM
+install -d -m 0755 /mnt
 # Clear previous session credentials before any operation that can fail.
 publish 'TeamViewer: inizializzazione in corso, credenziali non ancora disponibili.'
-trap 'publish "TeamViewer: preparazione interrotta. Consultare journalctl -u ibs-remote."; exit 1' HUP INT TERM
 password=$(openssl rand -hex 8)
 # TeamViewer requires acceptance of its license before unattended use.
 # Keep any existing vendor settings intact.
@@ -32,11 +44,32 @@ for attempt in $(seq 1 60); do
     sleep 3
 done
 if [ "$ready" != true ]; then
-    publish 'TeamViewer: configurazione password fallita. Consultare journalctl -u ibs-remote.'
+    error_message='TeamViewer: configurazione password fallita. Consultare journalctl -u ibs-remote.'
     exit 1
 fi
 for attempt in $(seq 1 60); do
-    id=$(teamviewer info 2>/dev/null | sed -n 's/.*TeamViewer ID:[[:space:]]*\([0-9][0-9 ]*\).*/\1/p' | tr -d ' ')
+    id=''
+    # Capture the command exit status BEFORE parsing; safe with set -e.
+    if output=$(teamviewer info 2>/dev/null); then
+        id=$(printf '%s\n' "$output" | awk '
+            BEGIN { esc = sprintf("%c", 27) }
+            {
+                # Strip ANSI CSI colors and CR used by the CLI.
+                gsub(esc "\\[[0-?]*[ -/]*[@-~]", "")
+                gsub(/\r/, "")
+                if ($0 ~ /^[ \t]*TeamViewer ID[ \t]*:/) {
+                    count++
+                    sub(/^[ \t]*TeamViewer ID[ \t]*:[ \t]*/, "")
+                    sub(/[ \t]*$/, "")
+                    if ($0 ~ /^[0-9]+([ \t]+[0-9]+)*$/) {
+                        gsub(/[ \t]/, "")
+                        if ($0 ~ /[1-9]/) value = $0
+                    }
+                }
+            }
+            END { if (count == 1 && value != "") print value }
+        ')
+    fi
     if [ -n "$id" ] && [ "$id" != 0 ]; then
         ips=$(ip -o -4 addr show scope global | awk '{print $4}' | cut -d/ -f1 | paste -sd ',' -)
         if [ -z "$ips" ]; then
@@ -57,5 +90,5 @@ ID assegnato; connessione remota da verificare."
     fi
     sleep 1
 done
-publish 'TeamViewer: ID o indirizzo IP locale non disponibile. Controllare rete e journalctl -u ibs-remote; riavviare il servizio per riprovare.'
+error_message='TeamViewer: ID o indirizzo IP locale non disponibile. Controllare rete e journalctl -u ibs-remote; riavviare il servizio per riprovare.'
 exit 1

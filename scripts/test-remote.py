@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""Execute a path-relocated copy with fake CLI tools; no daemon or /mnt writes."""
+from pathlib import Path
+import os
+import subprocess
+import tempfile
+import unittest
+
+PROJECT = Path('/opt/ibs-recoverywin-1.0')
+SOURCE = PROJECT / 'config/includes.chroot/usr/local/sbin/ibs-remote'
+
+class RemoteTests(unittest.TestCase):
+    def run_case(self, *, info='TeamViewer ID: 123456789', info_rc=0,
+                 password_rc=0, openssl_rc=0, ip=True, success=False):
+        with tempfile.TemporaryDirectory(prefix='.remote-test-', dir=PROJECT) as tmp:
+            root = Path(tmp)
+            bindir = root / 'bin'
+            bindir.mkdir()
+            conf = root / 'tvconf'
+            conf.mkdir(parents=True)
+            (conf / 'global.conf').write_text('[int32] EulaAccepted = 1\n')
+            source = SOURCE.read_text().replace('/mnt', str(root / 'output')).replace('/etc/teamviewer', str(conf))
+            self.assertNotIn('/mnt/teamviewer.txt', source)
+            self.assertNotIn('/etc/teamviewer', source)
+            script = root / 'remote'
+            script.write_text(source)
+            commands = {
+                'teamviewer': '''case "$1" in
+passwd) printf '%s' "$2" > "$TEST_ROOT/password-set"; exit "$MOCK_PASSWORD_RC" ;;
+info) printf '%s\\n' "$MOCK_INFO"; exit "$MOCK_INFO_RC" ;;
+*) exit 99 ;;
+esac''',
+                'openssl': 'if [ "$MOCK_OPENSSL_RC" != 0 ]; then exit "$MOCK_OPENSSL_RC"; fi\nprintf test-session-password',
+                'ip': 'if [ "$MOCK_IP" = yes ]; then printf "2: eth0 inet 192.0.2.10/24 scope global eth0\\n"; fi',
+                'sleep': ':',
+                'systemctl': 'exit 0',
+                'chown': '[ "$1" = root:admin ] || exit 99\nprintf root:admin > "$TEST_ROOT/owner-request"',
+            }
+            for name, body in commands.items():
+                target = bindir / name
+                target.write_text('#!/bin/sh\nset -eu\n' + body + '\n')
+                target.chmod(0o755)
+            env = dict(os.environ, PATH=str(bindir) + ':' + os.environ['PATH'],
+                       TEST_ROOT=tmp, MOCK_INFO=info, MOCK_INFO_RC=str(info_rc),
+                       MOCK_PASSWORD_RC=str(password_rc), MOCK_OPENSSL_RC=str(openssl_rc),
+                       MOCK_IP='yes' if ip else 'no')
+            result = subprocess.run(['sh', str(script)], env=env, capture_output=True, timeout=30)
+            txt = root / 'output/teamviewer.txt'
+            self.assertTrue(txt.is_file())
+            self.assertEqual(txt.stat().st_mode & 0o777, 0o640)
+            self.assertEqual((root / 'owner-request').read_text(), 'root:admin')
+            self.assertFalse(txt.with_suffix('.txt.tmp').exists())
+            content = txt.read_text()
+            self.assertNotIn(b'test-session-password', result.stdout + result.stderr)
+            if success:
+                self.assertEqual(result.returncode, 0)
+                self.assertIn('TeamViewer ID: 123456789\n', content)
+                self.assertIn('IP locale: 192.0.2.10', content)
+                self.assertIn('Password: ' + (root / 'password-set').read_text(), content)
+            else:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn('Password:', content)
+                self.assertNotIn('test-session-password', content)
+                self.assertNotIn('inizializzazione in corso', content)
+            return content
+
+    def test_success(self):
+        self.run_case(success=True)
+
+    def test_ansi_spaces_cr(self):
+        self.run_case(info='version\n  \x1b[1;32mTeamViewer ID:\x1b[0m 123 456 789\r\nstatus', success=True)
+
+    def test_reject_invalid_info(self):
+        for info in ('TeamViewer ID: 123abc', 'TeamViewer ID: 123 456 trailing',
+                     'TeamViewer ID: 0000', 'TeamViewer ID: not found', '',
+                     'prefix TeamViewer ID: 123456789',
+                     'TeamViewer ID: 123456789\nTeamViewer ID: 987654321'):
+            with self.subTest(info=repr(info)):
+                self.run_case(info=info)
+
+    def test_info_failed_with_numeric_output(self):
+        self.run_case(info_rc=1)
+
+    def test_password_failed(self):
+        self.run_case(password_rc=1)
+
+    def test_unexpected_exit(self):
+        self.assertIn('errore imprevisto', self.run_case(openssl_rc=7))
+
+    def test_no_ip(self):
+        self.run_case(ip=False)
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

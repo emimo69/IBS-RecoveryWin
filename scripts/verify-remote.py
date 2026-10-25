@@ -15,6 +15,9 @@ assert remote.index("publish 'TeamViewer: inizializzazione") < remote.index('pas
 assert remote.index('teamviewer passwd "$password"') < remote.index('Password: $password')
 assert 'IP locale: $ips' in remote and 'ip -o -4 addr show scope global' in remote
 assert 'if [ -z "$ips" ]; then' in remote
+assert 'if output=$(teamviewer info 2>/dev/null); then' in remote
+assert 'trap on_exit EXIT' in remote
+assert 'count == 1' in remote
 assert 'metadata::xfce-exe-checksum "$checksum"' in launcher_script
 assert 'install -m 0755' in launcher_script
 assert 'xdg-user-dir DESKTOP' in launcher_script
