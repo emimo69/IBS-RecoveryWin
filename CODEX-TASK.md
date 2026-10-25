@@ -1,29 +1,16 @@
-# CODEX-TASK.md — INCARICO ATTUALE: prima ISO e test QEMU della Live 1.0
+# CODEX-TASK.md — NUOVO INCARICO: diagnosticare e correggere i due guasti del primo test ISO
 
-**ESEGUI QUESTO INCARICO**, non limitarti a leggerlo. Leggi AGENTS.md. Il proprietario del progetto ha autorizzato esplicitamente la **prima compilazione della nuova ISO** e i **test in QEMU senza dischi fisici**. Questa autorizzazione vale soltanto per il progetto `/opt/ibs-recoverywin-1.0` sul ramo `ibs-recoverywin-1.0`. I precedenti incarichi sono conclusi.
+**ESEGUI** quando leggi questo file tramite Codex. Leggi AGENTS.md. Opera solo su /opt/ibs-recoverywin-1.0, ramo ibs-recoverywin-1.0. Non riscrivere componenti funzionanti e non intervenire su vecchie versioni.
 
-## 1. Verifiche e salvataggio preventivo
-- Recupera l'ultima versione del ramo GitHub; non sovrascrivere modifiche locali. Verifica stato Git.
-- Esegui i controlli statici: `scripts/verify-config.sh`, `scripts/verify-remote.py`, `scripts/test-remote.py`, `scripts/preflight-live.py --host`, usando gli interpreti appropriati e segnalando i limiti delle verifiche.
-- Verifica che `/mnt/teamviewer.txt` resti SOLO un semplice file TXT con ID reale e password reale della sessione; evita dettagli diagnostici superflui nel TXT. Conserva admin/admin, SSH, icona XFCE Mousepad, italiano.
-- Correggi solo errori reali necessari al boot o alla build, con commit e push **prima della compilazione**. Non cambiare funzionalità già verificate né la modalità operativa del timer.
+## Risultati reali già acquisiti
+Leggi prima docs/TEST-1.0-RESULTS.md (test QEMU completato). ISO compilata correttamente. Debian Live avviata; SSH admin/admin OK, locale italiano OK, XFCE in esecuzione. TXT /mnt/teamviewer.txt esiste ed è leggibile root:admin 0640. **Problemi: teamviewerd inattivo, ibs-remote failed status=1, launcher desktop non trovato eseguibile.** GUI e TeamViewer remoto non ancora verificati. Niente dischi collegati.
 
-## 2. Prima compilazione
-- Costruisci una ISO Debian Trixie XFCE da `/opt/ibs-recoverywin-1.0` tramite live-build esistente. Non eseguire `lb clean --purge`; mantieni cache pacchetti. Non toccare progetti precedenti.
-- Se il download TeamViewer o dipendenze fallisce, fermati con diagnostica precisa. Non dichiarare riuscita la build se manca TeamViewer.
-- Conserva la ISO originale generata e una copia con nome versione TEST-1.0 nel percorso del solo nuovo progetto, senza sovrascrivere file esistenti. File ISO non vanno su GitHub.
-- Registra in un file di documentazione GitHub il nome, SHA256, dimensione e data della ISO prodotta, senza segreti.
+## Lavoro richiesto, in ordine
+1. **Diagnosi accurata senza build**: confronta gli script e le unità systemd già pubblicate con i risultati. Individua difetti verificabili. Prepara un sistema di diagnosi per la Live di test già esistente, acquisendo solo stati/exit code e messaggi filtrati senza trascrivere credenziali TeamViewer; eventuali log completi devono restare locali, mai su GitHub. Il server di sviluppo non deve essere confuso col guest.
+2. **TeamViewer daemon**: controlla ordine/condizioni d'avvio e gestione del servizio nella Live. Non considerare avvio automatico riuscito perché è stato fatto systemctl enable nel chroot. Individua causa prima di cambiare e correggi solo gli errori confermati. Assicurati che /mnt/teamviewer.txt, al completamento, contenga soltanto ID e password reali, oltre all'IP se già previsto. Se non pronti, messaggio breve senza credenziali fittizie. Non cambiare admin/admin né SSH.
+3. **Launcher desktop**: verifica che il processo autostart venga eseguito nell'ambiente XFCE admin, che xdg-user-dir DESKTOP sia corretto con locale italiano, che il .desktop sia copiato e attendibile/eseguibile, e che Exec=mousepad /mnt/teamviewer.txt funzioni. Correggi soltanto quanto necessario.
+4. Test automatici dei difetti e regressione: statici/mocks per TeamViewer e launcher, preflight; nessun test spacciato per connettività reale. Commit/push separati per fix accertati; verifica hash remoto.
+5. **Solo quando risolti nei sorgenti i problemi accertati**, puoi compilare UNA nuova ISO di TEST, preservando integralmente ISO precedente e cache; non usare clean --purge; non sovrascrivere la precedente ISO. Prova solo la Live senza dischi in QEMU TCG come nel test precedente, con timeout e spegnimento. Verifica SSH, stato teamviewerd, ibs-remote, presenza permessi/launcher; non leggere né pubblicare ID/password reali. Confronta con i risultati precedenti e documenta SHA256 e limiti del test. Se non puoi diagnosticare realmente senza dati della Live, NON ricompilare alla cieca: documenta blocker e modalità per ricavare solo dati indispensabili con minima interazione.
+6. Salva sorgenti, test e report su GitHub con commit e push frequenti. Non committare ISO, file credenziali, log con dati personali, o sessioni TeamViewer.
 
-## 3. Test virtuale SENZA dischi
-- Se esiste QEMU, avvia solo la Live con emulazione TCG: il server attuale non ha /dev/kvm. Nessun disco QCOW2, /dev/sd*, /dev/nvme*, passthrough, o modifica firmware host.
-- Usa un metodo osservabile compatibile con server senza display (QEMU headless + VNC locale/seriale se disponibile), con limiti e timeout; lascia la VM spenta alla fine. Evita VM annidate, non usare il QCOW2 Windows da 64 GB in questo test.
-- Verifica effettivamente quanto possibile: boot, SSH via port forwarding localhost, user admin/admin, servizio TeamViewer, disponibilità di /mnt/teamviewer.txt. **Non dichiarare testata la GUI o la connessione TeamViewer da remoto se non puoi osservarle davvero**. Se TCG non completa il boot, riporta lo stato concreto e fermati senza simulare successo.
-- Non leggere, stampare, registrare su GitHub ID/password reali TeamViewer.
-
-## 4. Tracciabilità e conclusione
-- Dopo le modifiche sorgenti, fai commit e push frequenti sul ramo `ibs-recoverywin-1.0`, verificando hash remoto=locale. Pubblica risultati/limitazioni test in documentazione con ulteriore commit e push.
-- Mai cancellare o riscrivere dischi fisici. Non modificare vecchi progetti/rami; non cambiare proprietà file del server né creare nuovi account sul server.
-- Mantieni il task watcher operativo e invariato. Non abilitare esecuzione incontrollata o bypass delle approvazioni.
-- Alla fine riporta commit, nome ISO e risultati REALI, con problemi residui separati.
-
-**Autorizzata la build della nuova Live e la prova QEMU SENZA dischi. NON è autorizzato modificare dischi fisici, usare il QCOW2 Windows, cancellare le ISO vecchie o intervenire su progetti diversi.**
+**MAI modificare dischi fisici, usare il QCOW2 Windows da 64 GB, cancellare ISO o altri progetti, cambiare proprietari di cartelle del server, modificare timer.**
