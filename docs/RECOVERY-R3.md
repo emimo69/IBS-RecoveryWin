@@ -19,7 +19,8 @@ supporto USB di VTOYEFI (anche se rinominata). La EFI non viene selezionata.
 I mountpoint sono letti come array JSON, senza concatenare sequenze letterali
 backslash-n. Se i dati sono già montati, si crea una vista bind separata in
 sola lettura, senza rimontare l'originale; viste già aperte sono riutilizzate
-solo se device e ro corrispondono. Nuovi mount sono ro; NTFS usa norecover.
+solo se device e ro corrispondono. Nuovi mount sono ro, con uid/gid di admin e umask 022 per poter leggere
+i file anche se l’helper ha umask privata; NTFS usa norecover.
 Supportati exFAT, FAT e NTFS; altri filesystem non vengono montati alla cieca.
 Nessuna formattazione, riparazione o scrittura USB è implementata dal selettore.
 

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('media','config/includes.chroot/usr/local/lib/ibs-recovery/media.py')
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
@@ -43,6 +44,18 @@ class MediaTests(unittest.TestCase):
             with patch.object(m,'MEDIA_ROOT',Path(tmp)),patch.object(m,'guest_guard'),patch.object(m,'read_inventory',return_value=rows),patch.object(m,'clean_path',side_effect=lambda p:p),patch.object(m,'run',side_effect=fake),patch.object(m.os.path,'ismount',return_value=True):
                 self.assertEqual(m.mount_ventoy(token),target)
                 self.assertFalse(any(c[0]=='mount' for c in calls))
+    def test_new_ventoy_mount_is_readonly_and_readable_by_admin(self):
+        rows=fixture();rows[1]['mountpoints']=[];token=m.fingerprint(rows[1]);calls=[]
+        def fake(argv):
+            calls.append(argv)
+            return json.dumps({'filesystems':[{'maj:min':'8:17','options':'ro,nosuid,nodev,noexec'}]}) if argv[0]=='findmnt' else ''
+        with tempfile.TemporaryDirectory(dir='/opt/ibs-recoverywin-1.0',prefix='.media-test-') as tmp:
+            with patch.object(m,'MEDIA_ROOT',Path(tmp)),patch.object(m,'guest_guard'),patch.object(m,'read_inventory',return_value=rows),patch.object(m,'clean_path',side_effect=lambda p:p),patch.object(m,'run',side_effect=fake),patch.object(m.os.path,'ismount',return_value=False),patch.object(m.pwd,'getpwnam',return_value=SimpleNamespace(pw_uid=1000,pw_gid=1000)):
+                m.mount_ventoy(token)
+            mount=next(c for c in calls if c[0]=='mount')
+            options=mount[mount.index('-o')+1].split(',')
+            for value in ('ro','uid=1000','gid=1000','umask=022','noexec'):
+                self.assertIn(value,options)
     def test_admin_traversal_with_private_helper_umask(self):
         with tempfile.TemporaryDirectory(dir='/opt/ibs-recoverywin-1.0',prefix='.media-test-') as tmp:
             directory=Path(tmp)/'media'

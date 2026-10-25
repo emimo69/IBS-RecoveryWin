@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import pwd
 from pathlib import Path
 import re
 import subprocess
@@ -113,7 +114,8 @@ def mount_ventoy(token):
         fstype=str(part.get('fstype') or '').lower()
         if fstype not in ('exfat','vfat','ntfs','ntfs3'):
             raise MediaError('Ventoy: filesystem non supportato per montaggio sicuro (attesi exFAT, FAT o NTFS).')
-        options='ro,nosuid,nodev,noexec'
+        admin=pwd.getpwnam('admin')
+        options=f'ro,nosuid,nodev,noexec,uid={admin.pw_uid},gid={admin.pw_gid},umask=022'
         driver=fstype
         if fstype in ('ntfs','ntfs3'):
             driver='ntfs-3g';options+=',norecover'
