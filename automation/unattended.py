@@ -16,15 +16,28 @@ SESSION_SECONDS = 7200
 
 
 def busy():
-    # Conservative: any Codex process blocks execution, including sandbox PID 1.
-    # A PID namespace cannot certify host idleness, so never ignore PID 1.
+    """True for interactive/exec Codex sessions or when process visibility is insufficient.
+
+    Long-lived Codex app-server and code-mode-host helper daemons are not jobs.
+    Only ignore these two recognizable helper executable names, never arbitrary
+    commands containing those strings in their arguments.
+    """
     for proc in Path('/proc').glob('[0-9]*'):
         try:
-            if 'codex' in (proc / 'comm').read_text().lower():
+            raw = (proc / 'cmdline').read_bytes()
+            args = [x.decode('utf-8', 'replace') for x in raw.split(b'\\0') if x]
+            if not args:
+                continue
+            executable = Path(args[0]).name.lower()
+            if executable in ('codex-code-mode-host',):
+                continue
+            if executable == 'codex' and len(args) > 1 and args[1] == 'app-server':
+                continue
+            if executable == 'codex' or executable.startswith('codex-'):
                 return True
         except FileNotFoundError:
-            pass
-        except PermissionError:
+            continue
+        except (PermissionError, OSError):
             return True
     return False
 
