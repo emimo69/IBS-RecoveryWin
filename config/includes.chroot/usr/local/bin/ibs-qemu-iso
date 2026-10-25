@@ -95,6 +95,15 @@ ARGS=(
     -nic user,model=e1000
 )
 
+# WinRE richiede la CPU host anche senza disco fisico.
+if [[ "$(basename "$ISO")" == "IBS-WinRE.iso" ]]; then
+    if [ ! -e /dev/kvm ]; then
+        zenity --error --text="WinRE richiede accelerazione KVM."
+        exit 1
+    fi
+    ARGS+=(-cpu host)
+fi
+
 if [ -e /dev/kvm ]; then
     ARGS+=(-accel kvm)
 else
