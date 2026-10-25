@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 cd /opt/ibs-recoverywin-1.0
-for script in auto/config config/hooks/normal/0100-teamviewer.hook.chroot config/includes.chroot/lib/live/config/0990-ibs-admin config/includes.chroot/usr/local/sbin/ibs-remote; do
+for script in auto/config config/hooks/normal/0100-teamviewer.hook.chroot config/includes.chroot/lib/live/config/0990-ibs-admin config/includes.chroot/usr/local/sbin/ibs-remote config/includes.chroot/usr/local/bin/ibs-desktop-launcher; do
     sh -n "$script"
     test -x "$script"
 done
@@ -18,5 +18,6 @@ done
 )
 test -f config/includes.chroot/usr/local/sbin/ibs-remote
 ! git check-ignore -q config/includes.chroot/usr/local/sbin/ibs-remote
+python3 scripts/verify-remote.py
 git diff --check
 printf '%s\n' 'OK: sintassi shell, configurazione live-build e file necessari. Nessuna build eseguita.'

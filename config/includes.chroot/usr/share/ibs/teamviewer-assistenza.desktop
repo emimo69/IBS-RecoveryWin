@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=TeamViewer ID e Password
+Comment=Visualizza le credenziali della sessione live
+Exec=mousepad /mnt/teamviewer.txt
+Icon=dialog-information
+Terminal=false
+StartupNotify=true

@@ -1,15 +1,17 @@
 #!/bin/sh
 set -eu
 export LC_ALL=C
-install -d -m 0750 -o root -g admin /run/ibs
-info=/run/ibs/teamviewer.txt
+install -d -m 0755 /mnt
+info=/mnt/teamviewer.txt
 publish() {
     printf '%s\n' "$1" > "$info.tmp"
     chown root:admin "$info.tmp"
     chmod 0640 "$info.tmp"
     mv "$info.tmp" "$info"
 }
-publish 'TeamViewer: inizializzazione in corso...'
+# Clear previous session credentials before any operation that can fail.
+publish 'TeamViewer: inizializzazione in corso, credenziali non ancora disponibili.'
+trap 'publish "TeamViewer: preparazione interrotta. Consultare journalctl -u ibs-remote."; exit 1' HUP INT TERM
 password=$(openssl rand -hex 8)
 # TeamViewer requires acceptance of its license before unattended use.
 # Keep any existing vendor settings intact.
@@ -36,8 +38,18 @@ fi
 for attempt in $(seq 1 60); do
     id=$(teamviewer info 2>/dev/null | sed -n 's/.*TeamViewer ID:[[:space:]]*\([0-9][0-9 ]*\).*/\1/p' | tr -d ' ')
     if [ -n "$id" ] && [ "$id" != 0 ]; then
+        ips=$(ip -o -4 addr show scope global | awk '{print $4}' | cut -d/ -f1 | paste -sd ',' -)
+        if [ -z "$ips" ]; then
+            ips=$(ip -o -6 addr show scope global | awk '{print $4}' | cut -d/ -f1 | paste -sd ',' -)
+        fi
+        if [ -z "$ips" ]; then
+            publish 'TeamViewer: indirizzo IP locale non disponibile; credenziali non ancora pronte.'
+            sleep 1
+            continue
+        fi
         publish "TeamViewer ID: $id
 Password: $password
+IP locale: $ips
 
 SSH: admin / admin
 ID assegnato; connessione remota da verificare."
@@ -45,5 +57,5 @@ ID assegnato; connessione remota da verificare."
     fi
     sleep 1
 done
-publish 'TeamViewer: ID non disponibile. Controllare rete e journalctl -u ibs-remote; riavviare il servizio per riprovare.'
+publish 'TeamViewer: ID o indirizzo IP locale non disponibile. Controllare rete e journalctl -u ibs-remote; riavviare il servizio per riprovare.'
 exit 1

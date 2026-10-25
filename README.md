@@ -7,7 +7,7 @@ tastiera italiana e fuso Europe/Rome. Nessuna ISO compilata.
 - SSH con password, accesso consentito solo ad admin; chiavi host generate al boot.
 - NetworkManager e TeamViewer avviati automaticamente.
 - Conky mostra sul desktop ID e password TeamViewer, generata a ogni avvio.
-  Le credenziali sono in `/run/ibs/teamviewer.txt`, leggibili solo da root/admin.
+  Il file riporta anche gli indirizzi IP locali assegnati. Le credenziali sono in `/mnt/teamviewer.txt`, leggibili solo da root/admin.
   Errori e ID non disponibile sono mostrati esplicitamente; per riprovare:
   `sudo systemctl restart ibs-remote`.
 - Nessuna implementazione NAS, creazione USB o QEMU.
@@ -35,3 +35,16 @@ Le credenziali admin/admin sono quelle richieste per questa prima fase.
 
 Riferimenti: [Debian Live Manual](https://live-team.pages.debian.net/live-manual/html/live-manual.en.html)
 e [TeamViewer CLI](https://www.teamviewer.com/it/global/support/knowledge-base/teamviewer-remote/download-and-installation/linux/install-teamviewer-classic-on-linux-without-graphical-user-interface/).
+
+Il launcher **TeamViewer ID e Password** viene creato nella cartella desktop
+localizzata di admin all'accesso XFCE e apre `/mnt/teamviewer.txt` con Mousepad.
+Lo script applica modo 0755 e il checksum GVFS `metadata::xfce-exe-checksum`
+nella sessione utente, con tentativi per attendere la disponibilità dei metadati.
+Il file di assistenza è pubblicato atomicamente con proprietario root:admin e
+modo 0640; /mnt resta attraversabile (0755). Password e ID vengono mostrati
+solo dopo esito positivo di `teamviewer passwd`, ID numerico e IP disponibile.
+Durante preparazione o errore viene mostrato un messaggio senza credenziali.
+L'assegnazione dell'ID e l'esito della CLI non provano una connessione remota.
+
+Verifica statica del launcher basata sul [meccanismo di attendibilità XFCE](https://developer.xfce.org/libxfce4util/libxfce4util-GIO-Extensions.html).
+La creazione e l'attendibilità nel desktop richiedono ancora collaudo nella live.
