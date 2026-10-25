@@ -1,7 +1,7 @@
 [Unit]
 Description=IBS RecoveryWin - TeamViewer automatico
-After=network-online.target teamviewerd.service display-manager.service
-Wants=network-online.target teamviewerd.service
+After=network-online.target teamviewerd.service display-manager.service ibs-ssh-admin.service
+Wants=network-online.target teamviewerd.service ibs-ssh-admin.service
 
 [Service]
 Type=oneshot

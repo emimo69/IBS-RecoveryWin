@@ -2,7 +2,6 @@
 Description=IBS-RecoveryWin - Configurazione SSH admin
 After=live-config.service
 Wants=live-config.service
-ConditionPathExists=/run/live/medium
 
 [Service]
 Type=oneshot
