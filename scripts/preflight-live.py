@@ -34,7 +34,8 @@ required = {'linux-image-amd64', 'live-boot', 'live-config', 'live-config-system
             'openssh-server', 'sudo', 'locales', 'keyboard-configuration',
             'network-manager', 'network-manager-gnome', 'curl', 'ca-certificates',
             'openssl', 'iproute2', 'mousepad', 'conky-std', 'gvfs',
-            'libglib2.0-bin', 'xdg-user-dirs'}
+            'libglib2.0-bin', 'xdg-user-dirs', 'zenity', 'cifs-utils', 'exfatprogs',
+            'ntfs-3g', 'python3', 'qemu-system-x86', 'qemu-system-gui', 'qemu-utils', 'ovmf'}
 need(required <= packages, 'pacchetti essenziali mancanti: ' + ', '.join(sorted(required-packages)))
 # user-setup is a Recommends of live-config 11.0.5, essential to creation of admin.
 need('user-setup' in packages or 'LB_APT_RECOMMENDS="true"' in text('config/common'),
@@ -74,6 +75,18 @@ for path in (ROOT / 'lib/live/config/0990-ibs-admin', ROOT / 'usr/local/sbin/ibs
              PROJECT / 'config/hooks/normal/0100-teamviewer.hook.chroot'):
     need(path.stat().st_mode & 0o111, 'script non eseguibile: ' + str(path))
     subprocess.run(['sh', '-n', str(path)], check=True)
+# Added recovery components do not replace TeamViewer autostart/launcher.
+import ast
+for path in ('usr/local/bin/ibs-desktop-ip','usr/local/bin/ibs-recovery','usr/local/sbin/ibs-media',
+             'usr/local/lib/ibs-recovery/media.py','usr/local/lib/ibs-recovery/vm.py'):
+    ast.parse((ROOT/path).read_text())
+for name,command in (('monta-iso','/usr/local/bin/ibs-recovery'),('avvia-os','/usr/local/bin/ibs-recovery --disk')):
+    launcher=ROOT/'usr/share/ibs'/f'{name}.desktop'
+    need(launcher.stat().st_mode & 0o111, 'launcher recupero non eseguibile')
+    need(entry(f'usr/share/ibs/{name}.desktop','Desktop Entry')['Exec']==command,'Exec recupero errato')
+need('alignment = \'top_right\'' in (ROOT/'etc/conky/ibs.conf').read_text(), 'IP non in alto a destra')
+need('${execi 2 /usr/local/bin/ibs-desktop-ip}' in (ROOT/'etc/conky/ibs.conf').read_text(), 'IP non dinamico')
+subprocess.run(['sh','-n',str(ROOT/'usr/local/bin/ibs-media-launchers')],check=True)
 print('OK: pacchetti, boot admin/italiano, live-config, login, SSH, TeamViewer, dipendenze servizio e autostart (statico).')
 if args.host:
     for tool in ('lb', 'qemu-system-x86_64', 'ssh'):

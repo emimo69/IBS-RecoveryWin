@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 sys.dont_write_bytecode=True
 sys.path.insert(0,str(Path('config/includes.chroot/usr/local/lib/ibs-recovery').resolve()))
 import media
@@ -51,6 +52,11 @@ class VMTests(unittest.TestCase):
         graph=json.loads(args[args.index('-blockdev')+1])
         self.assertFalse(graph['read-only'])
         self.assertNotIn('ibs-disk',' '.join(args))
+    def test_direct_bad_confirmation_never_opens_device(self):
+        rows=self.rows()
+        with patch.object(vm,'ensure_live_medium'),patch.object(vm,'read_inventory',return_value=rows),patch.object(vm.os,'open') as opened:
+            with self.assertRaises(media.MediaError):vm.open_disk(media.fingerprint(rows[0]),True,'conferma errata')
+            opened.assert_not_called()
     def test_os_readonly_fd_denies_write_on_fixture(self):
         with tempfile.TemporaryDirectory(dir='/opt/ibs-recoverywin-1.0',prefix='.vm-test-') as tmp:
             path=Path(tmp)/'base con spazi.raw';path.write_bytes(b'fixture')

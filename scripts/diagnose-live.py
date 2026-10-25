@@ -103,6 +103,24 @@ if launcher.is_file() and session_env is not None:
     values=re.findall(r'metadata::xfce-exe-checksum: ([0-9a-f]{64})',metadata.stdout)
     report['launcher_metadata_matches_checksum'] = values == [hashlib.sha256(launcher.read_bytes()).hexdigest()]
     report['launcher_exec_correct'] = 'Exec=mousepad /mnt/teamviewer.txt' in launcher.read_text()
+# R3-only checks: do not open recovery GUI, NAS, USB or nested VM.
+if Path('/usr/local/bin/ibs-desktop-ip').is_file():
+    ip_status=command(['/usr/local/bin/ibs-desktop-ip'])
+    report['desktop_ip_command_ok'] = ip_status.returncode == 0 and ip_status.stdout.startswith('IP ')
+    report['desktop_ip_address_available'] = 'nessun indirizzo' not in ip_status.stdout and 'non disponibile' not in ip_status.stdout
+    conf=Path('/etc/conky/ibs.conf').read_text()
+    report['desktop_ip_top_right_dynamic'] = "alignment = 'top_right'" in conf and '${execi 2 /usr/local/bin/ibs-desktop-ip}' in conf
+    report['conky_process_present'] = command(['pgrep','-u',str(os.getuid()),'-x','conky']).returncode == 0
+    for name in ('monta-iso','avvia-os'):
+        candidate=desktop/(name+'.desktop')
+        report[name+'_executable'] = os.access(candidate, os.X_OK)
+        report[name+'_trusted'] = False
+        if candidate.is_file() and session_env is not None:
+            metadata=command(['gio','info','-a','metadata::xfce-exe-checksum',str(candidate)],env=session_env)
+            values=re.findall(r'metadata::xfce-exe-checksum: ([0-9a-f]{64})',metadata.stdout)
+            report[name+'_trusted'] = values == [hashlib.sha256(candidate.read_bytes()).hexdigest()]
+    report['recovery_helper_guest_guard'] = 'hostname=ibs-recoverywin' in Path('/usr/local/lib/ibs-recovery/media.py').read_text()
+    report['qemu_and_ovmf_present'] = shutil.which('qemu-system-x86_64') is not None and Path('/usr/share/OVMF/OVMF_CODE_4M.fd').is_file()
 if args.probe_launcher and session_env is not None:
     r = command(['/usr/local/bin/ibs-desktop-launcher'], env=session_env)
     report['launcher_probe_rc'] = r.returncode

@@ -43,6 +43,14 @@ class MediaTests(unittest.TestCase):
             with patch.object(m,'MEDIA_ROOT',Path(tmp)),patch.object(m,'guest_guard'),patch.object(m,'read_inventory',return_value=rows),patch.object(m,'clean_path',side_effect=lambda p:p),patch.object(m,'run',side_effect=fake),patch.object(m.os.path,'ismount',return_value=True):
                 self.assertEqual(m.mount_ventoy(token),target)
                 self.assertFalse(any(c[0]=='mount' for c in calls))
+    def test_admin_traversal_with_private_helper_umask(self):
+        with tempfile.TemporaryDirectory(dir='/opt/ibs-recoverywin-1.0',prefix='.media-test-') as tmp:
+            directory=Path(tmp)/'media'
+            old=os.umask(0o077)
+            try:
+                with patch.object(m,'MEDIA_ROOT',directory):m.ensure_media_root()
+            finally:os.umask(old)
+            self.assertEqual(directory.stat().st_mode & 0o777,0o755)
     def test_nas_no_password(self):
         source=Path(spec.origin).read_text()
         self.assertIn('guest,ro,nosuid,nodev,noexec,vers=3.0,prefixpath=ISO',source)
