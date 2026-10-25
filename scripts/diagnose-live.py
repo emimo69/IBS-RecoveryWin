@@ -111,6 +111,14 @@ if args.probe_launcher and session_env is not None:
     after = command(['xdg-user-dir','DESKTOP'], env=session_env)
     target = Path(after.stdout.strip())/'teamviewer-assistenza.desktop'
     report['launcher_after_probe_executable'] = os.access(target, os.X_OK)
+    # Exercise the requested Exec without capturing/rendering document contents.
+    # No screenshots and no stdout/stderr from Mousepad are retained.
+    if target.is_file() and 'Exec=mousepad /mnt/teamviewer.txt' in target.read_text():
+        app=subprocess.Popen(['mousepad','/mnt/teamviewer.txt'],env=session_env,
+                             stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        time.sleep(2)
+        report['mousepad_exec_accepted'] = app.poll() in (None, 0)
+        report['mousepad_process_present'] = command(['pgrep','-u',str(os.getuid()),'-x','mousepad']).returncode == 0
 # Minimal guest-only probe: start vendor daemon separately, then retry IBS.
 # No TeamViewer info/password command output is read or exposed.
 if args.probe_services:

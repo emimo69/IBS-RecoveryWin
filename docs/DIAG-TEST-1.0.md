@@ -1,6 +1,6 @@
 # Diagnosi dei guasti TEST-1.0
 
-Prima ricompilazione sospesa fino alla verifica delle cause. Diagnosi iniziale
+Cause verificate prima di autorizzare operativamente la nuova build. Diagnosi iniziale
 sulla ISO originale invariata in QEMU TCG, senza dischi, SSH admin/admin riuscito.
 Il daemon avviato separatamente restituisce exit code 0 e stato active.
 L'avvio di ibs-remote invece riproduce il fallimento e lo stop del daemon.
@@ -54,8 +54,16 @@ nel finally; è uno strumento di test manuale, non viene invocato dal timer.
 percorso personalizzato con spazi, ritardo GVFS, modo 0755, checksum e comando
 Mousepad sul percorso corretto; non legge il TXT reale o avvia una GUI.
 
-La nuova build viene eseguita in .build/TEST-1.0-R2-build con copia dei sorgenti
+La nuova build è stata eseguita in .build/TEST-1.0-R2-build con copia dei sorgenti
 config e cache condivisa via collegamento alla cache esistente. Nessuna pulizia
 chroot/binary o cancellazione/sovrascrittura di ISO precedente: il vecchio albero
 di build e le due ISO originali restano intatti. L'unica modifica funzionale
 alla Live è la dipendenza Wants della preparazione TeamViewer.
+
+## Conferma dopo la build
+
+La R2 conferma teamviewerd active/running e ibs-remote active/exited con exit 0;
+launcher presente, eseguibile e checksum di attendibilità corretto. Il probe
+`--probe-launcher` prova anche l'Exec Mousepad con output soppresso, senza
+screenshot o acquisizione del TXT. Risultati, hash e limiti nel
+[rapporto R2](TEST-1.0-R2-RESULTS.md).

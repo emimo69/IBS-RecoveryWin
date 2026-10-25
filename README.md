@@ -1,8 +1,9 @@
 # IBS-RecoveryWin 1.0
 
 Prima configurazione live-build: Debian Trixie amd64, XFCE in italiano,
-tastiera italiana e fuso Europe/Rome. Prima ISO TEST-1.0 compilata;
-vedere [risultati reali](docs/TEST-1.0-RESULTS.md).
+tastiera italiana e fuso Europe/Rome. ISO TEST-1.0 R2 compilata e provata;
+vedere [risultati reali R2](docs/TEST-1.0-R2-RESULTS.md) e
+[primo test](docs/TEST-1.0-RESULTS.md).
 
 - Utente live `admin`, password `admin`, gruppo sudo e login automatico LightDM.
 - SSH con password, accesso consentito solo ad admin; chiavi host generate al boot.
@@ -84,4 +85,5 @@ Nessuna build o VM è stata avviata per preparare questa guida.
 Autorizzata dal task corrente la compilazione della prima ISO e la prova QEMU
 TCG della sola Live. Il TXT di assistenza resta testo semplice: in caso di
 successo contiene soltanto ID TeamViewer, password di sessione e IP locale.
-I risultati effettivi saranno registrati in docs/TEST-1.0-RESULTS.md.
+Risultati del primo test in docs/TEST-1.0-RESULTS.md; diagnosi e nuovo test
+corretto in docs/DIAG-TEST-1.0.md e docs/TEST-1.0-R2-RESULTS.md.
