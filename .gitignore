@@ -20,3 +20,5 @@ cache/
 /live-image-*.contents
 /live-image-*.files
 /live-image-*.packages
+
+__pycache__/

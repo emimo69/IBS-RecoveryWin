@@ -25,3 +25,9 @@ xdg-user-dirs
 libglib2.0-bin
 gvfs
 gvfs-backends
+
+zenity
+cifs-utils
+exfatprogs
+ntfs-3g
+python3

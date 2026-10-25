@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Prepara icone recupero IBS
+Exec=/usr/local/bin/ibs-media-launchers
+OnlyShowIn=XFCE;
+Terminal=false

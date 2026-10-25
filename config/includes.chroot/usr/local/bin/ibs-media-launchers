@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+[ "$(id -un)" = admin ] || exit 0
+xdg-user-dirs-update
+desktop=$(xdg-user-dir DESKTOP)
+[ -n "$desktop" ] && [ "$desktop" != "$HOME" ]
+mkdir -p "$desktop"
+for name in monta-iso; do
+    launcher="$desktop/$name.desktop"
+    install -m 0755 "/usr/share/ibs/$name.desktop" "$launcher"
+    checksum=$(sha256sum "$launcher" | cut -d ' ' -f1)
+    trusted=false
+    for attempt in $(seq 1 30); do
+        if gio set -t string "$launcher" metadata::xfce-exe-checksum "$checksum"; then
+            touch "$launcher"
+            trusted=true
+            break
+        fi
+        sleep 1
+    done
+    [ "$trusted" = true ] || exit 1
+done

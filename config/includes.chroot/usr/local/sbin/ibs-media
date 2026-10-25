@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+import json
+import sys
+sys.path.insert(0,'/usr/local/lib/ibs-recovery')
+from media import MediaError,guest_guard,read_inventory,ventoy_candidates,fingerprint,mount_nas,mount_ventoy
+try:
+    guest_guard()
+    action=sys.argv[1] if len(sys.argv)>1 else ''
+    if action=='ventoy-list' and len(sys.argv)==2:
+        result=[{'token':fingerprint(r),'name':r['name'],'label':r.get('label') or 'Ventoy dati','size':r['size']} for r in ventoy_candidates(read_inventory())]
+    elif action=='nas' and len(sys.argv)==2:
+        result={'path':mount_nas()}
+    elif action=='ventoy' and len(sys.argv)==3:
+        result={'path':mount_ventoy(sys.argv[2])}
+    else:
+        raise MediaError('Azione non valida.')
+    print(json.dumps(result))
+except (MediaError,OSError,ValueError,KeyError) as exc:
+    print(json.dumps({'error':str(exc)}));sys.exit(1)

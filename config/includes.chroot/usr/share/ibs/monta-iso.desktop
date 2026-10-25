@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Monta ISO
+Comment=Seleziona ISO NAS QNAP o dati Ventoy in sola lettura
+Exec=/usr/local/bin/ibs-recovery
+Icon=media-optical
+Terminal=false
+StartupNotify=true

@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""Admin GUI; privileged actions are restricted by the guest-only helper."""
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+def dialog(*args):
+    p=subprocess.run(['zenity',*args],capture_output=True,text=True)
+    if p.returncode:
+        raise KeyboardInterrupt
+    return p.stdout.rstrip('\n')
+
+def backend(*args):
+    progress=subprocess.Popen(['zenity','--progress','--pulsate','--auto-close','--no-cancel',
+        '--title=IBS Recovery','--text=Preparazione in sola lettura in corso...'],stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,text=True)
+    try:
+        p=subprocess.run(['sudo','-n','/usr/local/sbin/ibs-media',*args],capture_output=True,text=True,timeout=90)
+        value=json.loads(p.stdout)
+        if p.returncode:
+            raise RuntimeError(value.get('error','Operazione fallita.'))
+        return value
+    finally:
+        if progress.poll() is None:
+            progress.communicate('100\n',timeout=5)
+
+def select_iso():
+    choice=dialog('--list','--radiolist','--title=Monta ISO','--text=Scegli origine (accesso in sola lettura)',
+        '--column=','--column=Origine','TRUE','NAS QNAP','FALSE','USB Ventoy')
+    if choice=='NAS QNAP':
+        folder=backend('nas')['path']
+    else:
+        rows=backend('ventoy-list')
+        if not rows:
+            raise RuntimeError('Nessuna partizione dati Ventoy USB rilevata.')
+        values=[]
+        for index,row in enumerate(rows):
+            values += ['TRUE' if index==0 else 'FALSE',row['token'],row['name'],str(row['label']),str(row['size'])]
+        token=dialog('--list','--radiolist','--hide-column=2','--print-column=2','--title=Ventoy dati',
+            '--column=','--column=Token','--column=Dispositivo','--column=Etichetta','--column=Byte',*values)
+        folder=backend('ventoy',token)['path']
+    dialog('--info','--title=Origine pronta','--text=Origine disponibile in sola lettura. Seleziona la ISO da aprire.')
+    path=dialog('--file-selection','--title=Seleziona ISO','--filename='+folder+'/',
+        '--file-filter=ISO | *.iso *.ISO *.Iso')
+    if any(ord(c)<32 for c in path) or Path(path).suffix.lower()!='.iso' or not Path(path).is_file():
+        raise RuntimeError('Selezionare un file ISO valido.')
+    return path
+
+try:
+    iso=select_iso()
+    dialog('--info','--title=ISO selezionata','--text=ISO selezionata correttamente:\n'+iso+'\n\nAvvio QEMU disponibile nella prossima fase di configurazione.')
+except KeyboardInterrupt:
+    pass
+except (RuntimeError,OSError,ValueError,subprocess.SubprocessError) as exc:
+    subprocess.run(['zenity','--error','--title=IBS Recovery','--text='+str(exc)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
