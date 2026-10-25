@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+# L'utente admin viene creato da live-config.
+id admin >/dev/null 2>&1 || exit 1
+
+echo 'admin:admin' | chpasswd
+
+mkdir -p /etc/ssh/sshd_config.d
+
+cat > /etc/ssh/sshd_config.d/00-ibs-admin.conf <<'SSH'
+PasswordAuthentication yes
+KbdInteractiveAuthentication yes
+PermitRootLogin no
+SSH
+
+/usr/sbin/sshd -t
+systemctl restart ssh.service

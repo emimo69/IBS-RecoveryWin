@@ -1,0 +1,17 @@
+#!/bin/bash
+
+FILE="/mnt/teamviewer.txt"
+
+if [ ! -f "$FILE" ]; then
+
+    zenity --info \
+        --title="IBS Rescue - Assistenza Remota" \
+        --width=450 \
+        --text="Attendere la connessione Internet.
+
+TeamViewer è ancora in fase di inizializzazione."
+
+    exit 0
+fi
+
+mousepad "$FILE"

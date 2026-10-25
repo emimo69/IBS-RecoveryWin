@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=IBS - Icone attendibili
+Exec=/usr/local/bin/ibs-trust-launchers
+OnlyShowIn=XFCE;
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

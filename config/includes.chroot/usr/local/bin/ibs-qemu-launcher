@@ -1,0 +1,68 @@
+#!/bin/bash
+
+SCELTA=$(zenity --list --radiolist \
+  --title="IBS-RecoveryWin - QEMU Manager" \
+  --width=680 --height=360 \
+  --text="Scegli cosa vuoi avviare:" \
+  --column="Seleziona" --column="Operazione" \
+  TRUE "Avvia disco fisico - Modalita protetta" \
+  FALSE "Avvia disco fisico - Scrittura diretta" \
+  FALSE "Carica ISO - USB Ventoy o NAS QNAP")
+
+[ -n "$SCELTA" ] || exit 0
+
+case "$SCELTA" in
+    "Avvia disco fisico - Modalita protetta")
+        DISK=$(/usr/local/bin/ibs-disk-select) || exit 1
+        [ -n "$DISK" ] || exit 0
+
+        zenity --question             --title="IBS-RecoveryWin - Conferma"             --text="Avviare il disco $DISK in modalita protetta?\nLe modifiche saranno temporanee."             || exit 0
+
+        FIRMWARE=$(zenity --list --radiolist             --title="IBS-RecoveryWin - Firmware"             --column="Seleziona" --column="Firmware"             TRUE uefi FALSE legacy) || exit 0
+
+        [ -n "$FIRMWARE" ] || exit 0
+
+        pkexec /usr/local/sbin/ibs-qemu-disk-session "$DISK" "$FIRMWARE"
+        exit $?
+        ;;
+    "Avvia disco fisico - Scrittura diretta")
+        DISK=$(/usr/local/bin/ibs-disk-select) || exit 1
+        [ -n "$DISK" ] || exit 0
+
+        INFO=$(lsblk -dn -o NAME,SIZE,MODEL,SERIAL "$DISK")
+
+        zenity --question \
+            --width=650 \
+            --title="IBS-RecoveryWin - Scrittura diretta" \
+            --text="ATTENZIONE: SCRITTURA REALE SUL DISCO
+
+$INFO
+
+Windows e QEMU potranno modificare partizioni,
+file, EFI e configurazione di avvio.
+
+Utilizzare soltanto il disco desiderato.
+
+Confermi di voler procedere?" || exit 0
+
+        FIRMWARE=$(zenity --list --radiolist \
+            --title="Firmware QEMU" \
+            --column="Seleziona" \
+            --column="Firmware" \
+            TRUE uefi FALSE legacy) || exit 0
+
+        [ -n "$FIRMWARE" ] || exit 0
+
+        pkexec /usr/local/sbin/ibs-qemu-disk-direct "$DISK" "$FIRMWARE"
+        exit $?
+        ;;
+    "Carica ISO - USB Ventoy o NAS QNAP")
+        exec /usr/local/bin/ibs-qemu-iso
+        ;;
+esac
+
+
+
+zenity --info \
+  --title="IBS-RecoveryWin" \
+  --text="Hai selezionato:\n\n$SCELTA\n\nConfigurazione QEMU in preparazione."

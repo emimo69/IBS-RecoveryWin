@@ -1,0 +1,12 @@
+#!/bin/sh
+
+for FILE in \
+ "$HOME/Desktop/Avvia-QEMU.desktop" \
+ "$HOME/Desktop/Monta-ISO.desktop" \
+ "$HOME/Desktop/TeamViewer-ID-Password.desktop"
+do
+    if [ -f "$FILE" ]; then
+        chmod u+x "$FILE"
+        gio set "$FILE" metadata::trusted true 2>/dev/null || true
+    fi
+done

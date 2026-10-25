@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Monta ISO
+Comment=Carica e avvia immagini ISO con QEMU
+Exec=/usr/local/bin/ibs-qemu-iso
+Icon=utilities-terminal
+Terminal=false

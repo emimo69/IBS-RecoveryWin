@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+DEST="/mnt/ibs-overlay"
+NAS="//192.168.20.123/IBS-DATI"
+
+mkdir -p "$DEST"
+
+# Se è già montato, verifichiamo che sia CIFS.
+if mountpoint -q "$DEST"; then
+    [ "$(findmnt -n -o FSTYPE -T "$DEST")" = "cifs" ]
+    exit $?
+fi
+
+# Il NAS è facoltativo: timeout breve, nessuna richiesta password.
+timeout 8 mount -t cifs "$NAS" "$DEST" \
+    -o guest,vers=3.0,rw,nosuid,nodev,nosetuids \
+    >/dev/null 2>&1 || exit 1
+
+mountpoint -q "$DEST" &&
+[ "$(findmnt -n -o FSTYPE -T "$DEST")" = "cifs" ]

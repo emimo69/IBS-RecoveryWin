@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euo pipefail
+
+DEST="/mnt/ibs-ventoy"
+mkdir -p "$DEST"
+
+if mountpoint -q "$DEST"; then
+    printf '%s\n' "$DEST"
+    exit 0
+fi
+
+while IFS= read -r DEV; do
+    LABEL=$(lsblk -no LABEL "$DEV" 2>/dev/null | head -1)
+    [ "${LABEL,,}" = "ventoy" ] || continue
+
+    PARENT=$(lsblk -no PKNAME "$DEV" | head -1)
+    [ -n "$PARENT" ] || continue
+
+    TRAN=$(lsblk -dn -o TRAN "/dev/$PARENT" | xargs)
+    [ "$TRAN" = "usb" ] || continue
+
+    # Se già montata, restituiamo il percorso esistente
+    MOUNTED=$(findmnt -rn -S "$DEV" -o TARGET | head -1)
+    if [ -n "$MOUNTED" ]; then
+        printf '%s\n' "$MOUNTED"
+        exit 0
+    fi
+
+    mount -o ro,nosuid,nodev,noexec "$DEV" "$DEST"
+    printf '%s\n' "$DEST"
+    exit 0
+
+done < <(lsblk -rnp -o NAME,TYPE | awk '$2=="part"{print $1}')
+
+echo "Partizione Ventoy non trovata" >&2
+exit 1

@@ -1,0 +1,24 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "=== ISO USB / VENTOY ==="
+
+findmnt -rn -o TARGET,SOURCE,FSTYPE |
+while read -r target source fstype; do
+    case "$fstype" in
+        exfat|vfat|ntfs|ntfs3)
+            find "$target" -maxdepth 4 -type f \
+                -iname '*.iso' -print 2>/dev/null || true
+            ;;
+    esac
+done
+
+echo
+echo "=== ISO NAS QNAP ==="
+
+if mountpoint -q /mnt/ibs-iso; then
+    find /mnt/ibs-iso -maxdepth 4 -type f \
+        -iname '*.iso' -print 2>/dev/null || true
+else
+    echo "NAS non ancora montato"
+fi

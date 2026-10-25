@@ -1,0 +1,12 @@
+[Unit]
+Description=IBS RecoveryWin - TeamViewer automatico
+After=network-online.target teamviewerd.service display-manager.service
+Wants=network-online.target teamviewerd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ibs-teamviewer-auto
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

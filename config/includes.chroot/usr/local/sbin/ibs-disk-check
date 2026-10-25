@@ -1,0 +1,33 @@
+#!/bin/bash
+set -euo pipefail
+
+DEV="${1:-}"
+
+[ -n "$DEV" ] && [ -b "$DEV" ] || exit 1
+
+DEV=$(readlink -f "$DEV")
+
+# Accettiamo soltanto dischi interi
+[ "$(lsblk -dn -o TYPE "$DEV" | xargs)" = "disk" ] || exit 1
+
+# Blocchiamo i dispositivi USB, compresa Ventoy
+TRAN=$(lsblk -dn -o TRAN "$DEV" | xargs)
+[ "$TRAN" != "usb" ] || exit 1
+
+# Blocchiamo qualsiasi disco con filesystem montati
+if lsblk -nr -o MOUNTPOINTS "$DEV" | grep -q '[^[:space:]]'; then
+    exit 1
+fi
+
+# Blocchiamo i dischi che contengono swap attivo
+if lsblk -nr -o MOUNTPOINTS "$DEV" | grep -q '\[SWAP\]'; then
+    exit 1
+fi
+
+# Blocchiamo i dischi con partizioni usate come RAID/LVM
+if lsblk -nr -o TYPE "$DEV" |
+   grep -Eq '^(raid[0-9]*|lvm|crypt)$'; then
+    exit 1
+fi
+
+echo "$DEV"

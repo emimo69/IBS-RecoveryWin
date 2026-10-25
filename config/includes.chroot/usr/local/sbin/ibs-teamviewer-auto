@@ -1,0 +1,223 @@
+#!/bin/bash
+
+FILE="/mnt/teamviewer.txt"
+
+cat > "$FILE" <<'EOF2'
+========================================
+     IBS RESCUE - ASSISTENZA REMOTA
+========================================
+
+TeamViewer in inizializzazione...
+
+Attendere la connessione Internet.
+
+========================================
+EOF2
+
+chown admin:admin "$FILE"
+chmod 600 "$FILE"
+
+# Accetta automaticamente EULA/DPA
+teamviewer license accept >/dev/null 2>&1 || true
+
+# Avvia TeamViewer
+systemctl restart teamviewerd.service >/dev/null 2>&1 || true
+
+# Attende daemon TeamViewer
+for I in $(seq 1 30)
+do
+    systemctl is-active --quiet teamviewerd.service && break
+    sleep 2
+done
+
+# ----------------------------------------------------------
+# Attende la sessione grafica XFCE di admin
+# ----------------------------------------------------------
+
+XPID=""
+
+for I in $(seq 1 120)
+do
+    XPID=$(pgrep -u admin -n xfce4-session 2>/dev/null || true)
+
+    [ -n "$XPID" ] && break
+
+    sleep 2
+done
+
+# ----------------------------------------------------------
+# Riaggancia la GUI TeamViewer alla sessione X11
+# ----------------------------------------------------------
+
+if [ -n "$XPID" ]
+then
+    DISPLAY_VAR=$(
+        tr '\0' '\n' < /proc/$XPID/environ 2>/dev/null |
+        sed -n 's/^DISPLAY=//p' |
+        head -1
+    )
+
+    XAUTH_VAR=$(
+        tr '\0' '\n' < /proc/$XPID/environ 2>/dev/null |
+        sed -n 's/^XAUTHORITY=//p' |
+        head -1
+    )
+
+    DBUS_VAR=$(
+        tr '\0' '\n' < /proc/$XPID/environ 2>/dev/null |
+        sed -n 's/^DBUS_SESSION_BUS_ADDRESS=//p' |
+        head -1
+    )
+
+    XDG_RUNTIME=$(
+        tr '\0' '\n' < /proc/$XPID/environ 2>/dev/null |
+        sed -n 's/^XDG_RUNTIME_DIR=//p' |
+        head -1
+    )
+
+    pkill -u admin -f '/opt/teamviewer/tv_bin/TeamViewer' \
+        >/dev/null 2>&1 || true
+
+    sleep 2
+
+    runuser -u admin -- env \
+        HOME=/home/admin \
+        USER=admin \
+        LOGNAME=admin \
+        DISPLAY="${DISPLAY_VAR:-:0}" \
+        XAUTHORITY="${XAUTH_VAR:-/home/admin/.Xauthority}" \
+        DBUS_SESSION_BUS_ADDRESS="${DBUS_VAR:-}" \
+        XDG_RUNTIME_DIR="${XDG_RUNTIME:-/run/user/$(id -u admin)}" \
+        /opt/teamviewer/tv_bin/TeamViewer \
+        >/tmp/ibs-teamviewer-gui.log 2>&1 &
+
+    sleep 5
+fi
+
+# ----------------------------------------------------------
+# Attende ID TeamViewer
+# ----------------------------------------------------------
+
+ID=""
+
+for I in $(seq 1 120)
+do
+    ID=$(
+        teamviewer info 2>/dev/null |
+        tr -d '\r' |
+        grep -A2 -i 'TeamViewer ID' |
+        grep -oE '[0-9]{7,15}' |
+        tail -1
+    )
+
+    [ -n "$ID" ] && break
+
+    sleep 5
+done
+
+# ----------------------------------------------------------
+# Genera password di 8 caratteri alfanumerici
+# e la imposta PER ULTIMA
+# ----------------------------------------------------------
+
+PASSWORD=""
+PASS_OK=0
+
+for I in $(seq 1 30)
+do
+    CANDIDATE=$(
+        tr -dc 'A-Za-z0-9' </dev/urandom |
+        head -c 8
+    )
+
+    # Deve contenere maiuscola, minuscola e numero
+    if [[ "$CANDIDATE" =~ [A-Z] ]] &&
+       [[ "$CANDIDATE" =~ [a-z] ]] &&
+       [[ "$CANDIDATE" =~ [0-9] ]]
+    then
+        RESULT=$(teamviewer passwd "$CANDIDATE" 2>&1)
+
+        if echo "$RESULT" | grep -qi '^ok'
+        then
+            PASSWORD="$CANDIDATE"
+            PASS_OK=1
+            break
+        fi
+    fi
+done
+
+# ----------------------------------------------------------
+# IP locale
+# ----------------------------------------------------------
+
+IP=$(
+    ip -4 route get 1.1.1.1 2>/dev/null |
+    awk '
+    {
+        for (i=1;i<=NF;i++)
+            if ($i=="src") {
+                print $(i+1)
+                exit
+            }
+    }'
+)
+
+# ----------------------------------------------------------
+# File finale
+# ----------------------------------------------------------
+
+if [ -n "$ID" ] && [ "$PASS_OK" -eq 1 ]
+then
+
+cat > "$FILE" <<EOF2
+========================================
+     IBS RESCUE - ASSISTENZA REMOTA
+========================================
+
+TEAMVIEWER PRONTO
+
+TeamViewer ID:
+$ID
+
+Password:
+$PASSWORD
+
+Indirizzo IP locale:
+${IP:-Non disponibile}
+
+----------------------------------------
+Dati validi esclusivamente per
+questa sessione IBS Rescue.
+----------------------------------------
+
+Da SSH:
+
+cat /mnt/teamviewer.txt
+
+========================================
+EOF2
+
+else
+
+cat > "$FILE" <<EOF2
+========================================
+     IBS RESCUE - ASSISTENZA REMOTA
+========================================
+
+TEAMVIEWER NON ANCORA DISPONIBILE
+
+Attendere la connessione Internet
+e riprovare tra qualche minuto.
+
+Indirizzo IP locale:
+${IP:-Non disponibile}
+
+========================================
+EOF2
+
+fi
+
+chown admin:admin "$FILE"
+chmod 600 "$FILE"
+
+exit 0

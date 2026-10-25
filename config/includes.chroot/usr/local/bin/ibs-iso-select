@@ -1,0 +1,65 @@
+#!/bin/bash
+set -euo pipefail
+
+SORGENTE=$(zenity --list --radiolist \
+    --title="IBS-RecoveryWin - Origine ISO" \
+    --width=520 --height=260 \
+    --column="Seleziona" --column="Origine" \
+    TRUE "NAS QNAP" \
+    FALSE "USB / Ventoy") || exit 0
+
+[ -n "$SORGENTE" ] || exit 0
+
+if [[ "$SORGENTE" == "USB / Ventoy" ]]; then
+    VENTOY=$(pkexec /usr/local/sbin/ibs-ventoy-iso-mount) || {
+        zenity --error --text="Chiavetta Ventoy non trovata."
+        exit 1
+    }
+
+    [ -d "$VENTOY" ] || exit 1
+
+    ISO=$(zenity --file-selection \
+        --title="Seleziona ISO dalla chiavetta USB" \
+        --filename="$VENTOY/" \
+        --file-filter="Immagini ISO | *.iso *.ISO") || exit 0
+
+    [ -f "$ISO" ] || exit 1
+    printf "%s\n" "$ISO"
+    exit 0
+fi
+
+DIR="/mnt/ibs-iso/ISO"
+
+if ! mountpoint -q /mnt/ibs-iso; then
+    pkexec /usr/local/sbin/ibs-iso-nas-mount || exit 1
+fi
+
+if [ ! -d "$DIR" ]; then
+    zenity --error --text="Cartella ISO del QNAP non disponibile."
+    exit 1
+fi
+
+mapfile -d '' ISOS < <(
+    find "$DIR" -maxdepth 3 -type f -iname '*.iso' -print0 |
+    sort -z
+)
+
+if [ "${#ISOS[@]}" -eq 0 ]; then
+    zenity --warning --text="Nessuna ISO trovata sul QNAP."
+    exit 0
+fi
+
+ROWS=()
+for iso in "${ISOS[@]}"; do
+    ROWS+=(FALSE "$(basename "$iso")" "$iso")
+done
+
+zenity --list --radiolist \
+    --title="IBS-RecoveryWin - Carica ISO" \
+    --text="Seleziona la ISO da avviare con QEMU:" \
+    --width=850 --height=450 \
+    --column="Seleziona" \
+    --column="Immagine ISO" \
+    --column="Percorso" \
+    --print-column=3 \
+    "${ROWS[@]}"
