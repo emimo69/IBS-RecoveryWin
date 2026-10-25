@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Avvia sistema operativo da disco
+Comment=Avvio OS in VM con disco base protetto e overlay predefinito
+Exec=/usr/local/bin/ibs-recovery --disk
+Icon=computer
+Terminal=false
+StartupNotify=true

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Admin GUI; privileged actions are restricted by the guest-only helper."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -13,7 +14,7 @@ def dialog(*args):
 
 def backend(*args):
     progress=subprocess.Popen(['zenity','--progress','--pulsate','--auto-close','--no-cancel',
-        '--title=IBS Recovery','--text=Preparazione in sola lettura in corso...'],stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,text=True)
+        '--title=IBS Recovery','--text='+('Avvio VM in corso...' if args[0]=='launch' else 'Preparazione in sola lettura in corso...')],stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,text=True)
     try:
         p=subprocess.run(['sudo','-n','/usr/local/sbin/ibs-media',*args],capture_output=True,text=True,timeout=90)
         value=json.loads(p.stdout)
@@ -46,10 +47,53 @@ def select_iso():
         raise RuntimeError('Selezionare un file ISO valido.')
     return path
 
+def firmware():
+    return 'uefi' if dialog('--list','--radiolist','--title=Firmware VM','--column=','--column=Firmware',
+        'TRUE','UEFI OVMF','FALSE','Legacy BIOS')=='UEFI OVMF' else 'legacy'
+
+def run_vm():
+    mode='Avvia sistema operativo da disco' if sys.argv[1:]==['--disk'] else 'Avvia ISO di recupero'
+    caps=backend('capabilities')
+    request={'firmware':firmware(),'display':os.environ.get('DISPLAY',''),
+             'xauthority':os.environ.get('XAUTHORITY',str(Path.home()/'.Xauthority'))}
+    if request['firmware']=='uefi' and not caps['ovmf']:
+        raise RuntimeError('OVMF non disponibile: UEFI non può essere avviato.')
+    if mode=='Avvia ISO di recupero':
+        path=select_iso()
+        if not caps['kvm']:
+            if 'winre' in Path(path).name.casefold():
+                raise RuntimeError('WinRE richiede KVM e CPU host. Questa sessione non espone KVM; il test Live TCG non prova WinRE annidato.')
+            dialog('--question','--title=KVM non disponibile','--text=Avviare questa ISO generica in emulazione TCG? Sarà lenta e la compatibilità non è collaudata.')
+        request.update(kind='iso',path=path,allow_tcg=not caps['kvm'])
+    else:
+        if not caps['kvm']:
+            raise RuntimeError('Avvio Windows da disco richiede un host con KVM e un OS già presente. Non disponibile in questa sessione.')
+        rows=backend('disks')
+        if not rows:
+            raise RuntimeError('Nessun disco intero disponibile. Live, Ventoy, dischi montati, swap e volumi attivi sono esclusi.')
+        values=[]
+        for index,row in enumerate(rows):
+            values+=['TRUE' if index==0 else 'FALSE',row['token'],row['name'],str(row['model']),str(row['size'])]
+        token=dialog('--list','--radiolist','--hide-column=2','--print-column=2','--title=Disco OS intero',
+            '--column=','--column=Token','--column=Dispositivo','--column=Modello','--column=Byte',*values)
+        disk=next(r for r in rows if r['token']==token)
+        access=dialog('--list','--radiolist','--title=Accesso disco','--text=La modalità protetta usa una base realmente in sola lettura e overlay temporaneo in RAM.',
+            '--column=','--column=Modalità','TRUE','Protetto: overlay QCOW2','FALSE','Scrittura diretta sul disco reale')
+        direct=access=='Scrittura diretta sul disco reale'
+        confirmation=''
+        if direct:
+            dialog('--warning','--title=Scrittura reale','--text=ATTENZIONE: Windows potrà modificare realmente il disco '+disk['name']+'. Il disco deve essere libero e non montato. Questa modalità non è un test protetto.')
+            phrase='SCRIVI '+disk['name']+' '+token[:8]
+            confirmation=dialog('--entry','--title=Conferma scrittura','--text=Per autorizzare la scrittura digita esattamente:\n'+phrase)
+            if confirmation!=phrase:raise RuntimeError('Conferma non corrispondente: nessuna VM avviata.')
+        request.update(kind='disk',token=token,direct=direct,confirmation=confirmation)
+    result=backend('launch',json.dumps(request))
+    dialog('--info','--title=VM avviata','--text=VM avviata in una finestra QEMU.\nChiudila per terminare la sessione.\n'+
+        ('Le modifiche al disco restano nell’overlay temporaneo fino al riavvio della Live.' if result['protected'] and request['kind']=='disk' else ''))
+
 try:
-    iso=select_iso()
-    dialog('--info','--title=ISO selezionata','--text=ISO selezionata correttamente:\n'+iso+'\n\nAvvio QEMU disponibile nella prossima fase di configurazione.')
+    run_vm()
 except KeyboardInterrupt:
     pass
-except (RuntimeError,OSError,ValueError,subprocess.SubprocessError) as exc:
+except (RuntimeError,OSError,ValueError,StopIteration,subprocess.SubprocessError) as exc:
     subprocess.run(['zenity','--error','--title=IBS Recovery','--text='+str(exc)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

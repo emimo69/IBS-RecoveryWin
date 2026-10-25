@@ -31,3 +31,7 @@ cifs-utils
 exfatprogs
 ntfs-3g
 python3
+qemu-system-x86
+qemu-system-gui
+qemu-utils
+ovmf

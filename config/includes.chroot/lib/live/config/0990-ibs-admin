@@ -2,4 +2,7 @@
 set -eu
 printf 'admin:admin\n' | chpasswd
 usermod -aG sudo admin
+if getent group kvm >/dev/null; then
+    usermod -aG kvm admin
+fi
 ssh-keygen -A

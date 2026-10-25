@@ -68,15 +68,21 @@ def clean_path(value):
         raise MediaError('Percorso vuoto o contenente caratteri di controllo.')
     return str(Path(value).resolve(strict=True))
 
+def ensure_media_root():
+    if MEDIA_ROOT.is_symlink():raise MediaError('Directory media non valida.')
+    MEDIA_ROOT.mkdir(mode=0o755,exist_ok=True)
+    os.chmod(MEDIA_ROOT,0o755)  # traverse by admin even with helper umask 0077
+
 def mount_nas():
     guest_guard()
-    MEDIA_ROOT.mkdir(mode=0o755,exist_ok=True)
+    ensure_media_root()
     target=MEDIA_ROOT/'qnap'
     target.mkdir(mode=0o755,exist_ok=True)
     if not os.path.ismount(target):
         # Guest authentication, no password/token/config credential files.
         run(['mount','-t','cifs','//192.168.20.123/Public',str(target),'-o',
-             'guest,ro,nosuid,nodev,noexec,vers=3.0,prefixpath=ISO'])
+             'guest,ro,nosuid,nodev,noexec,vers=3.0,prefixpath=ISO,noperm,file_mode=0444,dir_mode=0555'],
+             env={'PATH':'/usr/sbin:/usr/bin:/sbin:/bin','LANG':'C'})
     # Never reuse an unexpected or writable mount at our fixed location.
     info=json.loads(run(['findmnt','--json','--mountpoint',str(target),'-o','SOURCE,FSTYPE,OPTIONS']))['filesystems'][0]
     if info['fstype']!='cifs' or info['source'] not in ('//192.168.20.123/Public','//192.168.20.123/Public/ISO') or 'ro' not in info['options'].split(','):
@@ -86,7 +92,7 @@ def mount_nas():
 def mount_ventoy(token):
     guest_guard()
     part=select_token(read_inventory(),token,ventoy_candidates)
-    MEDIA_ROOT.mkdir(mode=0o755,exist_ok=True)
+    ensure_media_root()
     target=MEDIA_ROOT/('ventoy-'+token[:16])
     target.mkdir(mode=0o755,exist_ok=True)
     if os.path.ismount(target):
