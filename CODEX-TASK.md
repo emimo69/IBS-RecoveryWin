@@ -1,4 +1,6 @@
-# Incarico Codex — IBS-RecoveryWin 1.0
+# Incarico esecutivo Codex — IBS-RecoveryWin 1.0
+
+**ISTRUZIONE OPERATIVA:** Quando l'utente scrive soltanto «Leggi CODEX-TASK.md», devi leggere questo file ed ESEGUIRE tutte le attività qui descritte, senza attendere un secondo comando e senza limitarti a riassumerlo. Leggi anche AGENTS.md. Se ci sono modifiche già presenti, controllale prima di intervenire; evita duplicazioni. Non avviare compilazioni ISO.
 
 Leggi `AGENTS.md` e applica questa correzione **solo** nel ramo `ibs-recoverywin-1.0`.
 
