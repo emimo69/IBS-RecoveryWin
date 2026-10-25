@@ -1,7 +1,8 @@
 # IBS-RecoveryWin 1.0
 
 Prima configurazione live-build: Debian Trixie amd64, XFCE in italiano,
-tastiera italiana e fuso Europe/Rome. Nessuna ISO compilata.
+tastiera italiana e fuso Europe/Rome. Prima ISO TEST-1.0 compilata;
+vedere [risultati reali](docs/TEST-1.0-RESULTS.md).
 
 - Utente live `admin`, password `admin`, gruppo sudo e login automatico LightDM.
 - SSH con password, accesso consentito solo ad admin; chiavi host generate al boot.

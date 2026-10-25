@@ -1,6 +1,6 @@
 # Primo collaudo virtuale della sola Live
 
-Guida preparata, **comandi QEMU non eseguiti**. Prima servono autorizzazione
+Guida generale: il primo test è ora registrato in [TEST-1.0-RESULTS.md](TEST-1.0-RESULTS.md). Prima servono autorizzazione
 separata alla compilazione ISO e all'avvio della VM. Nessun componente QEMU
 viene aggiunto nella Live. Non installare pacchetti in questa fase.
 
@@ -41,7 +41,7 @@ ISO già compilata e verificata. Sostituire il nome ISO se diverso:
 
 ```sh
 qemu-system-x86_64 -no-user-config \
-  -name IBS-RecoveryWin-live-test -accel tcg -cpu max -smp 2 -m 4096 \
+  -name IBS-RecoveryWin-live-test -accel tcg -cpu max -smp 2 -m 2048 \
   -cdrom /opt/ibs-recoverywin-1.0/live-image-amd64.hybrid.iso -boot order=d \
   -nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2222-:22 \
   -display vnc=127.0.0.1:1
