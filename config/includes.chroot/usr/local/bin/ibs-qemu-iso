@@ -1,0 +1,123 @@
+#!/bin/bash
+set -euo pipefail
+
+ISO=$(/usr/local/bin/ibs-iso-select) || exit 0
+[ -n "$ISO" ] || exit 0
+
+if [ ! -f "$ISO" ]; then
+    zenity --error --text="ISO non disponibile: $ISO"
+    exit 1
+fi
+
+# Scelta accesso al disco fisico
+ACCESSO=$(zenity --list --radiolist \
+    --title="IBS-RecoveryWin - Accesso disco" \
+    --width=650 --height=340 \
+    --column="Seleziona" --column="Modalita" \
+    TRUE "Nessun disco" \
+    FALSE "Disco protetto" \
+    FALSE "Lettura e scrittura diretta") || exit 0
+
+[ -n "$ACCESSO" ] || exit 0
+
+DISK=""
+
+if [[ "$ACCESSO" != "Nessun disco" ]]; then
+    DISK=$(/usr/local/bin/ibs-disk-select) || exit 0
+    [ -n "$DISK" ] || exit 0
+
+    INFO=$(lsblk -dn -o NAME,SIZE,MODEL,SERIAL "$DISK")
+
+    if [[ "$ACCESSO" == "Lettura e scrittura diretta" ]]; then
+        zenity --question \
+          --width=600 \
+          --title="ATTENZIONE - Scrittura reale" \
+          --text="Il disco selezionato e':
+
+$INFO
+
+WinRE potra' modificare realmente partizioni, EFI,
+BCD e file Windows.
+
+Confermi la scrittura diretta?" || exit 0
+    fi
+fi
+
+BOOT=$(zenity --list --radiolist \
+    --title="IBS-RecoveryWin - Modalità avvio" \
+    --width=480 --height=260 \
+    --column="Seleziona" --column="Firmware" \
+    TRUE "UEFI (OVMF)" \
+    FALSE "BIOS Legacy") || exit 0
+
+[ -n "$BOOT" ] || exit 0
+
+if [[ "$ACCESSO" != "Nessun disco" ]]; then
+    if [[ "$BOOT" == "UEFI (OVMF)" ]]; then
+        FIRMWARE="uefi"
+    else
+        FIRMWARE="legacy"
+    fi
+
+    case "$ACCESSO" in
+        "Disco protetto")
+            pkexec env DISPLAY="${DISPLAY:-:0}" XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" /usr/local/sbin/ibs-qemu-disk-session \
+                "$DISK" "$FIRMWARE" "$ISO"
+            ;;
+        "Lettura e scrittura diretta")
+            pkexec env DISPLAY="${DISPLAY:-:0}" XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" /usr/local/sbin/ibs-qemu-disk-direct \
+                "$DISK" "$FIRMWARE" "$ISO"
+            ;;
+    esac
+    exit $?
+fi
+
+
+RAM_KB=$(awk '/MemTotal:/ {print $2}' /proc/meminfo)
+
+if (( RAM_KB >= 60000000 )); then
+    VM_RAM=24576
+elif (( RAM_KB >= 30000000 )); then
+    VM_RAM=16384
+elif (( RAM_KB >= 15000000 )); then
+    VM_RAM=8192
+else
+    VM_RAM=4096
+fi
+
+ARGS=(
+    -machine q35
+    -m "$VM_RAM"
+    -smp 2
+    -boot order=d
+    -cdrom "$ISO"
+    -vga std
+    -nic user,model=e1000
+)
+
+if [ -e /dev/kvm ]; then
+    ARGS+=(-accel kvm)
+else
+    ARGS+=(-accel tcg)
+fi
+
+if [[ "$BOOT" == "UEFI (OVMF)" ]]; then
+    OVMF_CODE="/usr/share/OVMF/OVMF_CODE_4M.fd"
+    OVMF_VARS="/usr/share/OVMF/OVMF_VARS_4M.fd"
+
+    if [ ! -f "$OVMF_CODE" ] || [ ! -f "$OVMF_VARS" ]; then
+        zenity --error --text="Firmware OVMF non trovato."
+        exit 1
+    fi
+
+    mkdir -p "${XDG_RUNTIME_DIR:-/tmp}/ibs-qemu"
+    VARS=$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/ibs-qemu/ovmf-XXXXXX.fd")
+    cp "$OVMF_VARS" "$VARS"
+
+    ARGS+=(
+        -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE"
+        -drive "if=pflash,format=raw,file=$VARS"
+    )
+fi
+
+qemu-system-x86_64 "${ARGS[@]}"

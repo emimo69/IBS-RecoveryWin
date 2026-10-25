@@ -1,0 +1,30 @@
+# File generati da live-build
+.build/
+binary/
+cache/
+chroot/
+auto/
+binary.*
+chroot.*
+live-image-*
+*.iso
+*.img
+*.qcow2
+
+# Pacchetti e materiali importati
+import-usb/
+*.deb
+
+# Credenziali e chiavi
+*.key
+*.pem
+*.p12
+*.pfx
+*.secret
+.env
+.env.*
+
+# File temporanei
+*.log
+*.bak
+*~
