@@ -90,7 +90,7 @@ il QCOW2 Windows 64 GB esistente in altri progetti per il test R3.
 Il test finale R3 avvia esclusivamente la Live senza dischi, in TCG sul server,
 con timeout e spegnimento; controlla SSH/servizi R2, IP e launcher/metadata,
 senza leggere credenziali e senza montare NAS/USB reali o avviare QEMU annidato.
-Risultati effettivi e SHA256 saranno in TEST-1.0-R3-RESULTS.md.
+Risultati effettivi e SHA256 sono in [TEST-1.0-R3-RESULTS.md](TEST-1.0-R3-RESULTS.md).
 
 Riferimenti: [QEMU fdset/read-only/backing](https://www.qemu.org/docs/master/system/invocation.html),
 [lsblk JSON](https://manpages.debian.org/trixie/util-linux/lsblk.8.en.html),

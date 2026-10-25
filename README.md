@@ -1,8 +1,9 @@
 # IBS-RecoveryWin 1.0
 
 Prima configurazione live-build: Debian Trixie amd64, XFCE in italiano,
-tastiera italiana e fuso Europe/Rome. ISO TEST-1.0 R2 compilata e provata;
-vedere [risultati reali R2](docs/TEST-1.0-R2-RESULTS.md) e
+tastiera italiana e fuso Europe/Rome. ISO TEST-1.0 R3 compilata dopo recovery Git e provata;
+vedere [risultati R3](docs/TEST-1.0-R3-RESULTS.md),
+[risultati R2](docs/TEST-1.0-R2-RESULTS.md) e
 [primo test](docs/TEST-1.0-RESULTS.md).
 
 - Utente live `admin`, password `admin`, gruppo sudo e login automatico LightDM.
@@ -12,7 +13,8 @@ vedere [risultati reali R2](docs/TEST-1.0-R2-RESULTS.md) e
   Il file riporta anche gli indirizzi IP locali assegnati. Le credenziali sono in `/mnt/teamviewer.txt`, leggibili solo da root/admin.
   Errori e ID non disponibile sono mostrati esplicitamente; per riprovare:
   `sudo systemctl restart ibs-remote`.
-- Nessuna implementazione NAS, creazione USB o QEMU.
+- R3 aggiunge IP dinamico, selezione ISO NAS/Ventoy e avvio QEMU separato
+  ISO/OS: vedere [funzioni e limiti](docs/RECOVERY-R3.md). Nessuna creazione USB.
 
 ## Preparazione senza compilazione
 

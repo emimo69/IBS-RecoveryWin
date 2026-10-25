@@ -121,6 +121,20 @@ if Path('/usr/local/bin/ibs-desktop-ip').is_file():
             report[name+'_trusted'] = values == [hashlib.sha256(candidate.read_bytes()).hexdigest()]
     report['recovery_helper_guest_guard'] = 'hostname=ibs-recoverywin' in Path('/usr/local/lib/ibs-recovery/media.py').read_text()
     report['qemu_and_ovmf_present'] = shutil.which('qemu-system-x86_64') is not None and Path('/usr/share/OVMF/OVMF_CODE_4M.fd').is_file()
+    capabilities=command(['sudo','-n','/usr/local/sbin/ibs-media','capabilities'])
+    report['recovery_capabilities_ok'] = capabilities.returncode == 0
+    try:
+        caps=json.loads(capabilities.stdout)
+    except ValueError:
+        caps={}
+    report['recovery_kvm_exposed'] = caps.get('kvm') is True
+    report['recovery_ovmf_available'] = caps.get('ovmf') is True
+    devices=command(['sudo','-n','/usr/local/sbin/ibs-media','ventoy-list'])
+    report['ventoy_inventory_command_ok'] = devices.returncode == 0
+    try:
+        report['ventoy_inventory_empty_diskless_test'] = json.loads(devices.stdout) == []
+    except ValueError:
+        report['ventoy_inventory_empty_diskless_test'] = False
 if args.probe_launcher and session_env is not None:
     r = command(['/usr/local/bin/ibs-desktop-launcher'], env=session_env)
     report['launcher_probe_rc'] = r.returncode
