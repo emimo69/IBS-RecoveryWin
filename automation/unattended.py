@@ -176,7 +176,8 @@ class Runner:
             record.update(status='failed', exit_code=125, reason='sessione_interrotta')
             self.write('runs/' + blob + '.json', record)
         if record and record.get('status') != 'quota_in_attesa':
-            self.status(record['status'], task=blob, reason='hash_non_ripetibile')
+            self.status(record['status'], task=blob, exit_code=record.get('exit_code'),
+                        reason=record.get('reason', 'hash_non_ripetibile'))
             return
         if record.get('next_attempt', 0) > time.time():
             self.status('quota_in_attesa', task=blob, next_attempt=record['next_attempt'])
