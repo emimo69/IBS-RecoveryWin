@@ -1,0 +1,59 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+readonly project=/opt/ibs-recoverywin-1.0
+readonly remote=https://github.com/emimo69/IBS-RecoveryWin.git
+readonly branch=ibs-recoverywin-1.0
+cd "$project"
+state="$project/.task-watch"
+mkdir -p "$state/logs" "$state/completed"
+exec 9>"$state/lock"
+flock -n 9 || exit 0
+log="$state/logs/$(date -u +%Y%m%dT%H%M%S)-$$.log"
+status() { printf '%s\n' "$*" > "$state/status"; printf '%s\n' "$*" >> "$log"; }
+fail() { status "$1 — intervento manuale richiesto; consultare automation/README.md"; touch "$state/blocked"; exit 1; }
+# Log only fixed messages, object hashes and exit codes. Never Git/Codex output.
+trap 'rc=$?; if (( rc != 0 )); then touch "$state/blocked"; printf "exit_code=%s\n" "$rc" >> "$log"; fi' EXIT
+mode=${1:-poll}
+if [[ "$mode" == retry ]]; then
+    [[ $# == 1 ]] || exit 2
+    [[ ! -e "$state/blocked" ]] || unlink "$state/blocked"
+    status 'Retry manuale autorizzato; prossimo controllo al tick successivo.'
+    exit 0
+fi
+[[ ! -e "$state/blocked" ]] || { status 'Bloccato: usare task-watch retry dopo verifica manuale.'; exit 0; }
+[[ $(git branch --show-current) == "$branch" ]] || fail 'Ramo locale errato'
+[[ -z $(git status --porcelain --untracked-files=all) ]] || fail 'Modifiche locali presenti; nessun aggiornamento applicato'
+[[ $(git remote get-url origin) == "$remote" ]] || fail 'Repository origin inatteso'
+GIT_TERMINAL_PROMPT=0 timeout 60 git fetch --quiet --no-tags "$remote" "refs/heads/$branch" >/dev/null 2>&1 || fail 'Fetch fallito'
+commit=$(git rev-parse FETCH_HEAD)
+blob=$(git rev-parse "$commit:CODEX-TASK.md")
+[[ $(git cat-file -t "$blob") == blob ]] || fail 'Task non valido'
+if [[ "$mode" == complete ]]; then
+    [[ ${2:-} == "$blob" ]] || fail 'Hash task inatteso'
+    [[ $(git rev-parse HEAD) == "$commit" ]] || fail 'HEAD locale e remoto diversi'
+    touch "$state/completed/$blob"
+    status "Completamento confermato manualmente: $blob; exit_code=0"
+    exit 0
+fi
+[[ "$mode" == poll || "$mode" == assist ]] || fail 'Modalità sconosciuta'
+[[ ! -f "$state/completed/$blob" ]] || { status "Task già completato: $blob; exit_code=0"; exit 0; }
+# Preserve uncommitted work; never reset, rebase or switch branches.
+git merge --ff-only "$commit" >/dev/null 2>&1 || fail 'Fast-forward impossibile'
+printf '%s\n' "$blob" > "$state/pending"
+if [[ "$mode" == poll ]]; then
+    status "Incarico in attesa di revisione: $blob. Eseguire automation/task-watch assist; exit_code=0"
+    exit 0
+fi
+[[ -t 0 && -t 1 ]] || fail 'Modalità assistita richiede terminale interattivo'
+[[ $(id -u) != 0 ]] || fail 'Non eseguire Codex come root'
+# No redirected agent transcript: it could contain confidential material.
+# Human handles any approval in the terminal. This does NOT authorize a build.
+status "Avvio assistito: $blob"
+set +e
+codex --ask-for-approval on-request --sandbox workspace-write -C "$project" \
+ 'Leggi AGENTS.md e CODEX-TASK.md ed esegui solo il task revisionato. Lavora solo in /opt/ibs-recoverywin-1.0 sul ramo ibs-recoverywin-1.0. Non compilare ISO, non cancellare file, non montare o scrivere dischi fisici, non modificare altri progetti. Non leggere o pubblicare credenziali, chiavi, token o /mnt/teamviewer.txt. Non disabilitare sandbox o approvazioni. Chiedi approvazione quando necessaria. Esegui verifiche e commit/push; fermati se il push fallisce.'
+rc=$?
+set -e
+status "Sessione assistita terminata: $blob; exit_code=$rc; completamento da confermare manualmente"
+(( rc == 0 )) || fail "Codex fallito con exit_code=$rc"

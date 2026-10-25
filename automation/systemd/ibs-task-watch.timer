@@ -1,0 +1,11 @@
+[Unit]
+Description=IBS controllo incarichi ogni due minuti (attivazione manuale)
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=2min
+AccuracySec=1s
+Unit=ibs-task-watch.service
+
+[Install]
+WantedBy=timers.target

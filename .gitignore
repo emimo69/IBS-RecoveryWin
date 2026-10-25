@@ -9,3 +9,5 @@ cache/
 .build/
 .build.lock
 /local/
+
+/.task-watch/

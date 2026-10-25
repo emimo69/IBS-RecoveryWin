@@ -1,0 +1,18 @@
+[Unit]
+Description=IBS controllo assistito incarichi GitHub
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/ibs-recoverywin-1.0
+ExecStart=/opt/ibs-recoverywin-1.0/automation/task-watch poll
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/ibs-recoverywin-1.0
+ProtectHome=read-only
+PrivateTmp=true
+TimeoutStartSec=90
+StandardOutput=null
+StandardError=null

@@ -1,0 +1,5 @@
+#!/bin/bash
+set -euo pipefail
+systemctl --user disable --now ibs-task-watch.timer
+systemctl --user stop ibs-task-watch.service
+printf '%s\n' 'Timer disabilitato e servizio fermato. Stato e log conservati.'
