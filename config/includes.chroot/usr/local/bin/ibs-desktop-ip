@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""Plain-text Conky status; queried anew on each refresh, no credential access."""
+import json
+import subprocess
+
+def format_addresses(interfaces):
+    rows=[]
+    for iface in interfaces:
+        if iface.get('ifname') == 'lo' or iface.get('operstate') == 'DOWN':
+            continue
+        addresses=[a.get('local','') for a in iface.get('addr_info',[])
+                   if a.get('scope') == 'global' and a.get('family') in ('inet','inet6')]
+        ipv4=[a for a in addresses if ':' not in a]
+        for address in ipv4 or addresses:
+            rows.append(f"IP {iface.get('ifname','rete')}: {address}")
+    return '\n'.join(rows) or 'IP locale: nessun indirizzo disponibile'
+
+def main():
+    try:
+        data=subprocess.run(['ip','-j','address','show'],capture_output=True,text=True,check=True,timeout=3)
+        print(format_addresses(json.loads(data.stdout)))
+    except (OSError,ValueError,subprocess.SubprocessError):
+        print('IP locale: rete non disponibile')
+
+if __name__ == '__main__':
+    main()
