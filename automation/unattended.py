@@ -25,7 +25,7 @@ def busy():
     for proc in Path('/proc').glob('[0-9]*'):
         try:
             raw = (proc / 'cmdline').read_bytes()
-            args = [x.decode('utf-8', 'replace') for x in raw.split(b'\\0') if x]
+            args = [x.decode('utf-8', 'replace') for x in raw.split(bytes([0])) if x]
             if not args:
                 continue
             executable = Path(args[0]).name.lower()
