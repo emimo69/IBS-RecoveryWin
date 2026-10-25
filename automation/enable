@@ -1,0 +1,34 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+cd /opt/ibs-recoverywin-1.0
+[[ $(id -u) != 0 ]] || { echo 'Non usare root.' >&2; exit 1; }
+# Run only from the host terminal after the interactive Codex session has ended.
+python3 - <<'PY'
+import sys
+sys.path.insert(0, 'automation')
+from unattended import busy
+if busy():
+    sys.exit('Codex attivo o visibilità processi insufficiente: mantenere poll.')
+PY
+systemctl --user show-environment >/dev/null
+[[ -z $(git status --porcelain --untracked-files=all) ]] || { echo 'Checkout non pulito.' >&2; exit 1; }
+[[ $(git remote get-url origin) == https://github.com/emimo69/IBS-RecoveryWin.git ]]
+[[ $(git branch --show-current) == ibs-recoverywin-1.0 ]]
+remote_head=$(GIT_TERMINAL_PROMPT=0 timeout 60 git ls-remote origin refs/heads/ibs-recoverywin-1.0)
+[[ ${remote_head%%$'\t'*} == $(git rev-parse HEAD) ]] || { echo 'Push non verificato.' >&2; exit 1; }
+python3 scripts/verify-task-watch.py
+python3 scripts/test-unattended.py
+# Distinct harmless smoke prompt. Production CODEX-TASK.md is never passed.
+# Do not persist output, which could contain private account diagnostics.
+timeout --signal=TERM --kill-after=10 120 codex --ask-for-approval never exec \
+    --sandbox workspace-write -C /opt/ibs-recoverywin-1.0 \
+    'Smoke test IBS-AUTOSTART: rispondi soltanto OK. Non usare strumenti, non leggere o modificare file, non eseguire CODEX-TASK.md.' \
+    >/dev/null 2>&1 || { echo 'Smoke Codex fallito: mantenere poll.' >&2; exit 1; }
+[[ -z $(git status --porcelain --untracked-files=all) ]]
+./automation/install
+# Start disabled first; only arm unattended after systemd acknowledges the timer.
+mkdir -p .task-watch
+systemctl --user enable --now ibs-task-watch.timer
+touch .task-watch/unattended-enabled
+./automation/status

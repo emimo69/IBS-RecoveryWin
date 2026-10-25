@@ -6,13 +6,15 @@ After=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/ibs-recoverywin-1.0
-ExecStart=/opt/ibs-recoverywin-1.0/automation/task-watch poll
+ExecStart=/opt/ibs-recoverywin-1.0/automation/task-watch unattended
 UMask=0077
 NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=/opt/ibs-recoverywin-1.0
 ProtectHome=read-only
 PrivateTmp=true
-TimeoutStartSec=90
+TimeoutStartSec=2h 2min
+TimeoutStopSec=20
+KillMode=control-group
 StandardOutput=null
 StandardError=null

@@ -1,5 +1,5 @@
 [Unit]
-Description=IBS controllo incarichi ogni due minuti (attivazione manuale)
+Description=IBS controllo incarichi ogni due minuti (poll o runner autorizzato)
 
 [Timer]
 OnBootSec=2min

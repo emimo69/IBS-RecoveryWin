@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 umask 077
+# Separate monitor never merges the working tree while polling.
+if [[ ${1:-poll} == poll || ${1:-} == unattended ]]; then
+    exec python3 /opt/ibs-recoverywin-1.0/automation/unattended.py "${1:-poll}"
+fi
 readonly project=/opt/ibs-recoverywin-1.0
 readonly remote=https://github.com/emimo69/IBS-RecoveryWin.git
 readonly branch=ibs-recoverywin-1.0

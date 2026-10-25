@@ -1,77 +1,78 @@
-# Controllo incarichi GitHub — predisposto, non attivato
+# Runner incarichi GitHub
 
-Solo Debian di sviluppo, /opt/ibs-recoverywin-1.0, ramo ibs-recoverywin-1.0.
-Non è incluso nella Live. Nessuna installazione o attivazione eseguita.
+Solo `/opt/ibs-recoverywin-1.0`, ramo `ibs-recoverywin-1.0`, utente non root.
+Non incluso nella Live. Nessuna build ISO, modifica a dischi o VM.
 
-La modalità scelta è **assistita**: il timer controlla ogni due minuti il blob
-CODEX-TASK.md del repository HTTPS fisso emimo69/IBS-RecoveryWin. Non può
-certificare che l'autore sia ChatGPT: ogni nuovo incarico va revisionato.
-Il controllo aggiorna il checkout solo tramite fast-forward e solo se pulito,
-memorizza il blob in `.task-watch/pending` e lascia un messaggio in `status`.
-Non esegue autonomamente le istruzioni del task.
+Il timer ha periodo di due minuti dopo la fine del servizio. Un controllo non
+crea una sessione: senza `.task-watch/unattended-enabled` resta in poll.
+Il fetch usa un repository bare separato in `.task-watch/monitor.git`; il poll
+non fa checkout o merge nella working tree. Il blob di CODEX-TASK.md identifica
+l'incarico, indipendentemente dai commit successivi. Non viene autenticata
+l'identità dell'autore del task: il ramo remoto deve essere fidato.
 
-`flock` copre fetch, aggiornamento, stato e sessione assistita. Anche altri
-strumenti di modifica devono essere fermati durante il controllo: il lock non
-coordina editor o sessioni Codex esterne. Git divergente, modifiche locali o
-errori bloccano il controllo; nessun reset o cancellazione automatica.
-Il fetch usa HTTPS fisso, non stampa output e non interroga file credenziali.
-Git può usare l'autenticazione già configurata; nessun token viene configurato.
-Timeout rete: 60 secondi. Stato/log hanno umask 0077 e sono esclusi da Git.
+`flock` è condiviso con la modalità assistita e resta acquisito per tutta la
+sessione, anche nei processi figli. Ogni processo con nome contenente Codex
+blocca l'avvio automatico; in un namespace senza visibilità dell'host non si
+può certificare l'assenza di altre sessioni. Editor esterni e nuovi Codex
+interattivi non rispettano il lock: non avviarli mentre lavora il runner.
 
-## Installazione futura, solo dopo verifica
+La modalità unattended usa la sintassi verificata nella CLI installata:
+`codex --ask-for-approval never exec --sandbox workspace-write -C DIR --json`.
+Nessun bypass o ampliamento automatico dei permessi. Timeout sessione due ore,
+TERM al gruppo dei processi, poi KILL dopo dieci secondi. systemd applica anche
+KillMode=control-group e TimeoutStopSec=20. Le build eventualmente autorizzate
+nel task restano soggette al timeout.
 
-Come utente di sviluppo non root, proprietario del checkout e con Git/Codex
-configurati: `./automation/install`. Installa unità **utente**, senza avviarle.
-Questa installazione scrive ~/.config/systemd/user e richiede autorizzazione
-nel nostro ambiente ristretto; non è stata eseguita in questo incarico.
-Prima controllare i task esistenti e segnare quello già svolto:
+Stati atomici privati in `.task-watch/runs/HASH.json`: running, success, failed,
+quota_in_attesa, con hash task, commit iniziale e codice uscita. Un running
+residuo diventa failed al riavvio. Success e failed non vengono rilanciati
+automaticamente; conservare questi file. I vecchi marker completed sono
+rispettati. Exit zero richiede anche verify-config.sh riuscito, checkout pulito,
+HEAD identico al ramo remoto e task invariato. verify-config è un controllo
+statico: i test specifici del task devono essere eseguiti dal Codex figlio;
+questo runner non certifica funzionamento Live, SSH o TeamViewer.
 
-```
-./automation/task-watch poll
-./automation/task-watch complete HASH_BLOB_REVISIONATO
-```
+Gli errori quota riconoscibili negli eventi JSON di errore impostano una pausa
+di sei ore (intervallo locale, NON timestamp ufficiale di reset). Il timer resta
+attivo senza creare sessioni ogni due minuti. Riprende lo stesso blob prima di
+nuovi task e conserva le modifiche parziali per la ripresa. Se la CLI non espone
+un errore quota riconoscibile, lo stato è failed e richiede diagnosi manuale.
+Nessun processo può superare la quota Codex. Non si salva il transcript della
+CLI né output Git: solo stati, hash e codici; non si leggono file TeamViewer.
 
-`complete` richiede checkout pulito, HEAD uguale al remoto e hash corrente
-identico a quello indicato. Va usato solo dopo verifiche e push riusciti.
-Un exit code 0 di Codex non viene scambiato per task completato.
-I marker `completed/HASH` persistono: nuovi commit con lo stesso task non lo
-rilanciano, anche se il task viene ripristinato successivamente.
+## Comandi
 
-Dopo autorizzazione separata: `systemctl --user enable --now ibs-task-watch.timer`.
-Non è fornito un comando di attivazione automatica nello script install.
-Serve una sessione systemd utente attiva; non abilitiamo linger.
-Consultare `.task-watch/status` e `.task-watch/logs/`.
-Per eseguire un task revisionato: `./automation/task-watch assist` da terminale.
-Al termine controllare risultato, test e push, poi usare `complete HASH`.
-Su errore, correggere manualmente e dare `./automation/task-watch retry`.
-Per fermare e disabilitare: `./automation/disable`; stato e log sono conservati.
+- Test senza Codex reale o rete: `python3 scripts/test-unattended.py`.
+- Verifiche statiche: `python3 scripts/verify-task-watch.py` e `./scripts/verify-config.sh`.
+- Poll singolo: `./automation/task-watch poll`.
+- Stato: `./automation/status` (include ultimo controllo, hash e attesa quota).
+- Fallback interattivo: `./automation/task-watch assist`; resta soggetto a checkout pulito e al precedente blocco manuale.
+- Arresto immediato: `./automation/disable` (rimuove prima l'abilitazione unattended).
 
-## Permessi e Codex
+Dopo commit/push verificato, dalla shell host e dopo la chiusura di tutte le
+sessioni Codex: `./automation/enable`. Il comando verifica bus, processi,
+checkout e remoto, riesegue i test e lancia uno smoke test Codex reale innocuo,
+con prompt distinto dal task di produzione e senza strumenti. Solo se riesce
+installa le unità utente e abilita il timer. `automation/install` da solo
+installa senza attivare; non configura linger. Non lanciare enable mentre R3
+lavora. Le unità già installate non vengono aggiornate dalla modifica dei file
+nel repository.
 
-La CLI locale supporta `codex exec --sandbox workspace-write -C DIR` per
-esecuzioni non interattive. La [documentazione ufficiale OpenAI](https://learn.chatgpt.com/docs/non-interactive-mode)
-descrive sandbox e permessi. Non abilitiamo tale invocazione nel timer:
-commit/push e altre operazioni possono richiedere approvazioni non gestibili
-in una sessione senza terminale. La modalità assistita usa `codex` interattivo,
-`--ask-for-approval on-request`, `--sandbox workspace-write` e `-C` fisso.
-Nessuna approvazione automatica, opzione di bypass o sandbox disabilitata.
-La directory di lavoro e sandbox limitano le scritture; non costituiscono
-una garanzia di isolamento di tutte le letture. Non eseguiamo task arbitrari
-non revisionati. Non si registrano stdout/stderr di Codex: potrebbero contenere
-segreti. Solo log di controllo, hash e risultato/exit code sono persistiti.
-Il runner non legge /mnt/teamviewer.txt né file di autenticazione.
+## Consegna del 25 ottobre 2026: attivazione bloccata
 
-## Verifiche eseguite e limiti
+Superati 13 test offline, incluso un vero processo fittizio terminato per
+timeout, e i controlli statici Live/shell. Nessun Codex figlio reale avviato.
+Da questa sessione il bus utente restituisce Operation not permitted, anche se
+funziona nella shell host. Anche systemd-analyze --user verify è bloccato da
+SO_PASSCRED. La visibilità processi è limitata e PID 1 è Codex: non è possibile
+certificare assenza di sessioni attive. Nessuna configurazione systemd attiva è
+stata cambiata; lo smoke reale e l'attivazione restano da eseguire sull'host.
 
-`python3 scripts/verify-task-watch.py` controlla staticamente timer, lock,
-stato/deduplicazione, modalità assistita, permessi e assenza di attivazione.
-`./scripts/verify-config.sh` verifica i sorgenti Live. Non vengono eseguiti
-fetch tramite runner, installazione, timer, Codex figlio, build o boot.
-Non è provato il funzionamento reale del servizio o della Live.
-
-Analisi Live: i sorgenti impostano admin/admin, autologin LightDM, abilitazione
-SSH nel chroot e generazione chiavi al boot. TeamViewer usa /mnt/teamviewer.txt,
-pubblicazione atomica root:admin 0640 e launcher Mousepad nella sessione XFCE.
-I difetti del parser ID e della gestione EXIT rilevati in questo incarico sono
-stati corretti nel successivo task TeamViewer; vedere README.md e test-remote.py.
-Non deduciamo dai soli sorgenti che SSH o TeamViewer siano operativi.
+La sandbox corrente protegge `.git` in sola lettura e limita la rete. Questi
+limiti possono impedire commit/push anche al runner non interattivo: in tal
+caso il task diventa failed/incompleto, senza escalation o retry continuo.
+Per automazione completa serve un'integrazione Git approvata e limitata a
+questo repository/ramo, con verifica di diff e destinazione, non accesso
+generale o sandbox disabilitata. Tale integrazione non è implementata qui.
+La documentazione ufficiale conferma i percorsi Git protetti:
+https://learn.chatgpt.com/docs/agent-approvals-security
