@@ -1,9 +1,10 @@
-# IBS-RecoveryWin — seconda prova automatica controllata
+# IBS-RecoveryWin — diagnostica automatica 3, sola lettura
 
-Questo è un **nuovo incarico di prova** per il timer systemd. Serve esclusivamente a diagnosticare con sicurezza il lancio non interattivo di Codex, senza interventi manuali.
+Obiettivo: verificare l'esecuzione non interattiva del runner dopo l'aggiornamento della diagnostica. Questo è un nuovo task con hash distinto dai due tentativi falliti.
 
-1. Leggi AGENTS.md e controlla in sola lettura il rapporto docs/TEST-1.0-R3-RESULTS.md.
-2. Non modificare file, non eseguire commit, push, compilazioni, QEMU, mount, dischi o comandi privilegiati.
-3. Rispondi in breve se AGENTS.md e il rapporto R3 esistono e termina con successo.
+1. Leggi AGENTS.md e controlla soltanto l'esistenza di docs/TEST-1.0-R3-RESULTS.md.
+2. Rispondi con una frase breve e termina. Se non puoi leggere i file, indica il blocco senza tentare di aggirarlo.
+3. Non modificare file; non fare commit o push; non compilare, non eseguire QEMU, non accedere a NAS, USB, dischi fisici, credenziali o servizi.
+4. Non avviare altre sessioni Codex e non modificare CODEX-TASK.md o gli script di automazione.
 
-Non modificare il runner né CODEX-TASK.md. Il runner classifica il codice d'errore in modo automatico, senza salvare testo privato. Se il test non parte, non riprovare indefinitamente lo stesso incarico.
+Questo task è un collaudo del lancio automatico, non una richiesta di sviluppo.
