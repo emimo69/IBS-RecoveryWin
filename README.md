@@ -68,3 +68,12 @@ scrittura atomica e permessi. Non può gestire SIGKILL o un filesystem che
 impedisce la scrittura; questi casi richiedono il controllo del servizio.
 I test simulati non dimostrano assegnazione ID, validità reale della password,
 accettazione licenza o connessione TeamViewer: serve collaudo nella Live.
+
+## Preflight e futuro test virtuale
+
+`python3 scripts/preflight-live.py` controlla le relazioni tra configurazione,
+pacchetti, utente, servizi e launchers; `--host` aggiunge controlli in sola
+lettura su strumenti, metadati APT e CPU/KVM, senza avviare VM.
+Vedere [guida breve QEMU](docs/TEST-QEMU.md) per prerequisiti, limiti rilevati
+e procedura futura della sola Live, separata dal QCOW2 Windows.
+Nessuna build o VM è stata avviata per preparare questa guida.
