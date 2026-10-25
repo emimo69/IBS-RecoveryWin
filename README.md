@@ -77,3 +77,10 @@ lettura su strumenti, metadati APT e CPU/KVM, senza avviare VM.
 Vedere [guida breve QEMU](docs/TEST-QEMU.md) per prerequisiti, limiti rilevati
 e procedura futura della sola Live, separata dal QCOW2 Windows.
 Nessuna build o VM è stata avviata per preparare questa guida.
+
+## Prima build TEST-1.0
+
+Autorizzata dal task corrente la compilazione della prima ISO e la prova QEMU
+TCG della sola Live. Il TXT di assistenza resta testo semplice: in caso di
+successo contiene soltanto ID TeamViewer, password di sessione e IP locale.
+I risultati effettivi saranno registrati in docs/TEST-1.0-RESULTS.md.

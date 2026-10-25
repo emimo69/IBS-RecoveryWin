@@ -82,10 +82,7 @@ for attempt in $(seq 1 60); do
         fi
         publish "TeamViewer ID: $id
 Password: $password
-IP locale: $ips
-
-SSH: admin / admin
-ID assegnato; connessione remota da verificare."
+IP locale: $ips"
         exit 0
     fi
     sleep 1
