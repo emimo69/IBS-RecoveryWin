@@ -37,9 +37,25 @@ solo guest e ricontrolla gli stati. I probe modificano solo la sessione RAM
 del guest, non sono attivati dal task watcher e non devono essere eseguiti
 sul server di sviluppo.
 
-## Launcher: verifica ancora in corso
+## Launcher: falso negativo del test precedente
 
-La prima diagnosi ha trovato SSH pronto prima di XFCE, directory desktop e
-configurazione XDG non ancora presenti. Questo non basta per attribuire un
-difetto al launcher: il controllo viene ripetuto dopo attesa della sessione
-XFCE e dell'autostart, sulla stessa ISO, senza build alla cieca.
+Secondo avvio della stessa ISO, attesa la sessione XFCE admin e altri 25 secondi:
+XDG risolve Scrivania, directory/configurazione presenti, launcher già presente
+ed eseguibile **prima** del probe manuale. Il probe nell'ambiente XFCE, con
+DISPLAY e bus di sessione presenti, termina con exit code 0 senza errori di
+permessi o metadati. Non è necessaria alcuna modifica al launcher funzionante.
+Il precedente test verificava il desktop troppo presto dopo il primo SSH.
+
+Corretto il controllo in scripts/test-live-qemu.py: attende prima la sessione
+XFCE, poi autostart e stato definitivo di ibs-remote. Lo script riceve una ISO
+all'interno del progetto, avvia solo CD-ROM/TCG senza dischi e spegne la VM
+nel finally; è uno strumento di test manuale, non viene invocato dal timer.
+`python3 scripts/test-launcher.py` verifica con HOME isolata Scrivania,
+percorso personalizzato con spazi, ritardo GVFS, modo 0755, checksum e comando
+Mousepad sul percorso corretto; non legge il TXT reale o avvia una GUI.
+
+La nuova build viene eseguita in .build/TEST-1.0-R2-build con copia dei sorgenti
+config e cache condivisa via collegamento alla cache esistente. Nessuna pulizia
+chroot/binary o cancellazione/sovrascrittura di ISO precedente: il vecchio albero
+di build e le due ISO originali restano intatti. L'unica modifica funzionale
+alla Live è la dipendenza Wants della preparazione TeamViewer.

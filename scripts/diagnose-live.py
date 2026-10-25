@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Guest-only diagnosis. JSON contains fixed statuses/flags, never credentials or raw logs."""
 import argparse
+import hashlib
+import stat
+import re
 import json
 import os
 from pathlib import Path
@@ -67,6 +70,16 @@ launcher = desktop/'teamviewer-assistenza.desktop'
 report['launcher_present'] = launcher.is_file()
 report['launcher_executable'] = os.access(launcher, os.X_OK)
 report['template_present'] = Path('/usr/share/ibs/teamviewer-assistenza.desktop').is_file()
+report['launcher_metadata_matches_checksum'] = False
+txt=Path('/mnt/teamviewer.txt')
+report['txt_readable'] = os.access(txt, os.R_OK)
+report['txt_regular'] = txt.is_file() and not txt.is_symlink()
+if txt.exists():
+    st=txt.stat()
+    report['txt_mode_0640'] = stat.S_IMODE(st.st_mode) == 0o640
+    report['txt_root_admin_owner'] = st.st_uid == 0 and st.st_gid == pwd.getpwnam('admin').pw_gid
+report['ssh_active'] = command(['systemctl','is-active','ssh.service']).returncode == 0
+report['locale_italian'] = command(['locale']).stdout.splitlines().count('LANG=it_IT.UTF-8') == 1
 report['launcher_script_executable'] = os.access('/usr/local/bin/ibs-desktop-launcher', os.X_OK)
 report['autostart_present'] = Path('/etc/xdg/autostart/ibs-desktop-launcher.desktop').is_file()
 report['commands_present'] = {name:shutil.which(name) is not None for name in ('xdg-user-dir','xdg-user-dirs-update','gio','mousepad','sha256sum')}
@@ -85,6 +98,11 @@ if session_env is not None:
     report['session_display_present'] = bool(session_env.get('DISPLAY'))
     report['session_bus_present'] = bool(session_env.get('DBUS_SESSION_BUS_ADDRESS'))
     report['session_desktop_is_xfce'] = session_env.get('XDG_CURRENT_DESKTOP','').upper() == 'XFCE'
+if launcher.is_file() and session_env is not None:
+    metadata=command(['gio','info','-a','metadata::xfce-exe-checksum',str(launcher)], env=session_env)
+    values=re.findall(r'metadata::xfce-exe-checksum: ([0-9a-f]{64})',metadata.stdout)
+    report['launcher_metadata_matches_checksum'] = values == [hashlib.sha256(launcher.read_bytes()).hexdigest()]
+    report['launcher_exec_correct'] = 'Exec=mousepad /mnt/teamviewer.txt' in launcher.read_text()
 if args.probe_launcher and session_env is not None:
     r = command(['/usr/local/bin/ibs-desktop-launcher'], env=session_env)
     report['launcher_probe_rc'] = r.returncode
