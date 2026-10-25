@@ -28,7 +28,11 @@ timeout --signal=TERM --kill-after=10 120 codex --ask-for-approval never exec \
 [[ -z $(git status --porcelain --untracked-files=all) ]]
 ./automation/install
 # Start disabled first; only arm unattended after systemd acknowledges the timer.
-mkdir -p .task-watch
+mkdir -p .task-watch/completed
+# At first activation, the already completed R3 task is the baseline, not a new job.
+# New instructions with a different CODEX-TASK.md blob will run normally.
+baseline=$(git rev-parse HEAD:CODEX-TASK.md)
+touch ".task-watch/completed/$baseline"
 systemctl --user enable --now ibs-task-watch.timer
 touch .task-watch/unattended-enabled
 ./automation/status
