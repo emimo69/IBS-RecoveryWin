@@ -1,0 +1,39 @@
+#!/bin/bash
+set -euo pipefail
+[[ $EUID == 0 && ${PKEXEC_UID:-} =~ ^[0-9]+$ && ${PKEXEC_UID:-0} -ge 1000 ]] || exit 1
+USER_NAME=$(getent passwd "$PKEXEC_UID" | cut -d: -f1)
+[[ "$USER_NAME" =~ ^[a-z_][a-z0-9_-]*$ && "$USER_NAME" != root ]] || exit 1
+SOURCE=$(zenity --entry --title="SSH PuTTY - rete autorizzata" \
+    --text="Indirizzo IP o rete CIDR del tecnico (es. IP/32). Non è consentito aprire l'accesso a tutta Internet.") || exit 0
+python3 - "$SOURCE" <<'CHECK'
+import ipaddress, sys
+try:
+    network = ipaddress.ip_network(sys.argv[1], strict=True)
+    assert network.prefixlen > 0 and not network.is_multicast and not network.is_unspecified
+except (ValueError, AssertionError):
+    sys.exit('Indirizzo/rete non valida o troppo ampia')
+CHECK
+KEY=$(zenity --entry --title="SSH PuTTY - chiave pubblica" \
+    --text="Incolla la chiave PUBBLICA OpenSSH esportata da PuTTYgen. Non inserire la chiave privata.") || exit 0
+case "$KEY" in ssh-ed25519\ *|ssh-rsa\ *|ecdsa-sha2-nistp256\ *|ecdsa-sha2-nistp384\ *|ecdsa-sha2-nistp521\ *) ;; *) echo "Chiave OpenSSH senza opzioni richiesta." >&2; exit 1 ;; esac
+[[ "$KEY" != *$'\n'* && "$KEY" != *$'\r'* ]] || exit 1
+TMP=$(mktemp -d)
+trap 'rm -rf -- "$TMP"' EXIT
+printf '%s\n' "$KEY" >"$TMP/key"
+FINGERPRINT=$(ssh-keygen -lf "$TMP/key")
+zenity --question --title="Abilita SSH" --text="Abilitare SSH per $USER_NAME soltanto da $SOURCE con la chiave pubblica indicata?\n$FINGERPRINT" || exit 0
+install -d -m 0755 /etc/ibs-recoverywin/ssh-keys
+install -m 0644 "$TMP/key" "/etc/ibs-recoverywin/ssh-keys/$USER_NAME"
+usermod -a -G ibs-remote "$USER_NAME"
+CONF=/etc/ssh/sshd_config.d/01-ibs-source.conf
+[[ ! -e "$CONF" ]] || cp "$CONF" "$TMP/previous.conf"
+printf 'AllowUsers %s@%s\n' "$USER_NAME" "$SOURCE" >"$CONF"
+ssh-keygen -A
+install -d -m 0755 /run/sshd
+if ! /usr/sbin/sshd -t; then
+    if [[ -e "$TMP/previous.conf" ]]; then cp "$TMP/previous.conf" "$CONF"; else rm -f "$CONF"; fi
+    echo "Configurazione SSH non valida; servizio non avviato." >&2
+    exit 1
+fi
+systemctl restart ssh.service
+zenity --info --text="SSH attivo per $USER_NAME da $SOURCE. Usa PuTTY con la chiave privata corrispondente. Per fermarlo: sudo systemctl stop ssh.service."

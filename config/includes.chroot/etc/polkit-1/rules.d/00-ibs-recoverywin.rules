@@ -1,0 +1,12 @@
+// Take precedence over live-config's sudo_on_live.rules for these fixed actions.
+polkit.addRule(function(action, subject) {
+    var actions = ["it.ibs.recoverywin.protected", "it.ibs.recoverywin.direct",
+                   "it.ibs.recoverywin.ssh", "it.ibs.recoverywin.repair"];
+    if (actions.indexOf(action.id) < 0) {
+        return;
+    }
+    if (!subject.local || !subject.active || !subject.isInGroup("sudo")) {
+        return polkit.Result.NO;
+    }
+    return polkit.Result.AUTH_ADMIN;
+});

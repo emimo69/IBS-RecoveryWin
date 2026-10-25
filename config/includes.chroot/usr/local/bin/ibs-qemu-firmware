@@ -17,7 +17,7 @@ case "$MODE" in
 
         printf '%s\n' \
             "-drive" "if=pflash,format=raw,readonly=on,file=$CODE" \
-            "-drive" "if=pflash,format=raw,file=$WORKDIR/ovmf-vars.fd"
+            "-drive" "if=pflash,format=raw,file=${WORKDIR//,/,,}/ovmf-vars.fd"
         ;;
 
     legacy)

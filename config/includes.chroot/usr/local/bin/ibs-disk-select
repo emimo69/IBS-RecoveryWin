@@ -4,16 +4,8 @@ set -euo pipefail
 ROWS=()
 
 while IFS= read -r DEV; do
-    [ -b "$DEV" ] || continue
-
-    # Escludiamo i supporti rimovibili, inclusa Ventoy.
-    RM=$(lsblk -dn -o RM "$DEV" | xargs)
-    [ "$RM" = "0" ] || continue
-
-    # Escludiamo dischi e partizioni già montati.
-    if lsblk -nr -o MOUNTPOINTS "$DEV" | grep -q '[^[:space:]]'; then
-        continue
-    fi
+    # Same policy as the privileged entry points; never offer an ineligible disk.
+    /usr/local/sbin/ibs-disk-check "$DEV" >/dev/null 2>&1 || continue
 
     MODEL=$(lsblk -dn -o MODEL "$DEV" | xargs)
     SIZE=$(lsblk -dn -o SIZE "$DEV" | xargs)

@@ -1,33 +1,30 @@
 #!/bin/bash
 set -euo pipefail
-
-DEV="${1:-}"
-
-[ -n "$DEV" ] && [ -b "$DEV" ] || exit 1
-
-DEV=$(readlink -f "$DEV")
-
-# Accettiamo soltanto dischi interi
-[ "$(lsblk -dn -o TYPE "$DEV" | xargs)" = "disk" ] || exit 1
-
-# Blocchiamo i dispositivi USB, compresa Ventoy
-TRAN=$(lsblk -dn -o TRAN "$DEV" | xargs)
-[ "$TRAN" != "usb" ] || exit 1
-
-# Blocchiamo qualsiasi disco con filesystem montati
-if lsblk -nr -o MOUNTPOINTS "$DEV" | grep -q '[^[:space:]]'; then
-    exit 1
+# shellcheck source=config/includes.chroot/usr/local/lib/ibs-recoverywin/disk-policy.sh
+source /usr/local/lib/ibs-recoverywin/disk-policy.sh
+fail() { echo "Disco non autorizzato: ${1:-dispositivo non idoneo}" >&2; exit 1; }
+[[ $# == 1 ]] || fail "specificare un disco intero"
+DEV=$(readlink -e -- "$1") || fail "percorso inesistente"
+[[ -b "$DEV" ]] || fail "non è un dispositivo a blocchi"
+TYPE=$(lsblk -dnro TYPE "$DEV")
+BYTES=$(lsblk -bdnro SIZE "$DEV")
+TRAN=$(lsblk -dnro TRAN "$DEV")
+RM=$(lsblk -dnro RM "$DEV")
+RO=$(lsblk -dnro RO "$DEV")
+ibs_disk_metadata_allowed "$DEV" "$TYPE" "$BYTES" "$TRAN" "$RM" "$RO" || fail "tipo, capacità o supporto rimovibile/virtuale/sola lettura"
+# Any descendant mapped by DM, RAID or another stack is ineligible, even unmounted.
+NODES=$(lsblk -nrpo NAME,TYPE "$DEV")
+while read -r NODE KIND; do
+    case "$KIND" in disk|part) ;; *) fail "device dipendente ($KIND)" ;; esac
+    NAME=${NODE##*/}
+    for HOLDER in /sys/class/block/"$NAME"/holders/*; do
+        [[ ! -e "$HOLDER" ]] || fail "device in uso da Device Mapper/RAID"
+    done
+done <<< "$NODES"
+FILESYSTEMS=$(lsblk -nro FSTYPE "$DEV")
+if grep -Eq '^(linux_raid_member|LVM2_member|crypto_LUKS|zfs_member)$' <<< "$FILESYSTEMS"; then
+    fail "membro RAID/LVM/cifrato/ZFS"
 fi
-
-# Blocchiamo i dischi che contengono swap attivo
-if lsblk -nr -o MOUNTPOINTS "$DEV" | grep -q '\[SWAP\]'; then
-    exit 1
-fi
-
-# Blocchiamo i dischi con partizioni usate come RAID/LVM
-if lsblk -nr -o TYPE "$DEV" |
-   grep -Eq '^(raid[0-9]*|lvm|crypt)$'; then
-    exit 1
-fi
-
-echo "$DEV"
+MOUNTS=$(lsblk -nro MOUNTPOINTS "$DEV")
+[[ ! "$MOUNTS" =~ [^[:space:]] ]] || fail "filesystem montato o swap attivo"
+printf '%s\n' "$DEV"

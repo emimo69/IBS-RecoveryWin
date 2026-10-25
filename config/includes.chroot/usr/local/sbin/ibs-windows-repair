@@ -1,0 +1,66 @@
+#!/bin/bash
+set -euo pipefail
+[[ $EUID == 0 ]] || exit 1
+DISK=$(/usr/local/bin/ibs-disk-select)
+[[ -n "$DISK" ]] || exit 0
+DISK=$(/usr/local/sbin/ibs-disk-check "$DISK")
+IDENTITY=$(lsblk -bdnro MAJ:MIN,SIZE,MODEL,SERIAL,WWN "$DISK")
+[[ "$(lsblk -dnro PTTYPE "$DISK")" == gpt ]] || { zenity --error --text="La procedura richiede un disco GPT/UEFI."; exit 1; }
+WORKDIR=$(mktemp -d /tmp/ibs-repair.XXXXXXXX)
+MOUNTED=0
+cleanup() {
+    if (( MOUNTED )); then umount "$WORKDIR/partition" || return; fi
+    rm -rf -- "$WORKDIR"
+}
+trap cleanup EXIT
+mkdir "$WORKDIR/partition"
+EFI_ROWS=()
+WIN_ROWS=()
+while read -r PART KIND; do
+    [[ "$KIND" == part ]] || continue
+    PARTTYPE=$(lsblk -dnro PARTTYPE "$PART")
+    FSTYPE=$(lsblk -dnro FSTYPE "$PART")
+    if [[ "${PARTTYPE,,}" == c12a7328-f81f-11d2-ba4b-00a0c93ec93b && "$FSTYPE" == vfat ]]; then
+        EFI_ROWS+=(FALSE "$PART")
+    elif [[ "$FSTYPE" == ntfs ]]; then
+        # Refuse dirty/hibernated volumes; never recover or replay them here.
+        if mount -t ntfs-3g -o ro,norecover,nosuid,nodev,noexec "$PART" "$WORKDIR/partition"; then
+            MOUNTED=1
+            if [[ -f "$WORKDIR/partition/Windows/System32/config/SYSTEM" ]]; then WIN_ROWS+=(FALSE "$PART"); fi
+            umount "$WORKDIR/partition"
+            MOUNTED=0
+        fi
+    fi
+done < <(lsblk -nrpo NAME,TYPE "$DISK")
+(( ${#EFI_ROWS[@]} && ${#WIN_ROWS[@]} )) || { zenity --error --text="EFI FAT e Windows leggibile non trovati. BitLocker/ibernazione richiedono WinRE; nessuna modifica eseguita."; exit 1; }
+EFI=$(zenity --list --radiolist --title="Scegli EFI (analisi sola lettura)" --column="Scelta" --column="Partizione" "${EFI_ROWS[@]}") || exit 0
+WINDOWS=$(zenity --list --radiolist --title="Scegli Windows verificato" --column="Scelta" --column="Partizione" "${WIN_ROWS[@]}") || exit 0
+[[ -n "$EFI" && -n "$WINDOWS" ]] || exit 0
+# This selection verifies external storage, excludes the source and boot media.
+DEST=$(/usr/local/bin/ibs-overlay-select "$DISK")
+/usr/local/sbin/ibs-disk-check "$DISK" >/dev/null
+[[ "$(lsblk -bdnro MAJ:MIN,SIZE,MODEL,SERIAL,WWN "$DISK")" == "$IDENTITY" ]] || exit 1
+BACKUP=$(mktemp -d "$DEST/ibs-efi-backup.XXXXXXXX")
+mount -t vfat -o ro,nosuid,nodev,noexec "$EFI" "$WORKDIR/partition"
+MOUNTED=1
+tar -C "$WORKDIR/partition" -cpf "$BACKUP/efi.tar" .
+(cd "$BACKUP" && sha256sum efi.tar > SHA256SUMS && sha256sum -c SHA256SUMS)
+umount "$WORKDIR/partition"
+MOUNTED=0
+printf 'Disco: %s\nIdentità: %s\nEFI: %s\nWindows: %s\n' "$DISK" "$IDENTITY" "$EFI" "$WINDOWS" >"$BACKUP/analisi.txt"
+cat >"$BACKUP/WinRE.txt" <<'GUIDE'
+Riparazione UEFI/BCD in WinRE (non eseguita automaticamente da Linux)
+1. Avvia WinRE in UEFI sul disco selezionato e confronta identità e dimensioni
+   con analisi.txt. Non presumere che i numeri di disco o le lettere coincidano.
+2. Nel prompt esegui diskpart, list disk, select disk <numero verificato>,
+   detail disk, list partition, list volume. Non usare clean o format.
+3. Seleziona la EFI FAT corretta e assegnale una lettera libera (es. S).
+   Identifica il volume Windows e assegnagli una lettera libera (es. W).
+4. Esci da diskpart. Verifica dir W:\Windows e dir S:\EFI. Se BitLocker
+   blocca il volume, sbloccalo con la chiave del proprietario fuori da questa guida.
+5. Soltanto dopo conferma di disco, Windows e backup, esegui:
+   bcdboot W:\Windows /s S: /f UEFI
+6. Verifica bcdedit /store S:\EFI\Microsoft\Boot\BCD /enum e riavvia.
+Non cancellare il backup EFI prima della verifica su macchina fisica.
+GUIDE
+zenity --info --width=700 --text="Analisi sola lettura completata.\nDisco: $DISK\nWindows: $WINDOWS\nEFI: $EFI\nBackup verificato: $BACKUP\n\nLa modifica BCD deve essere confermata ed eseguita in WinRE seguendo WinRE.txt. Nessuna modifica al disco è stata eseguita."

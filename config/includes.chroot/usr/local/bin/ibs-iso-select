@@ -5,15 +5,22 @@ SORGENTE=$(zenity --list --radiolist \
     --title="IBS-RecoveryWin - Origine ISO" \
     --width=520 --height=260 \
     --column="Seleziona" --column="Origine" \
-    TRUE "NAS QNAP" \
-    FALSE "USB / Ventoy") || exit 0
+    TRUE "USB / Ventoy" \
+    FALSE "File locale" \
+    FALSE "NAS QNAP") || exit 0
 
 [ -n "$SORGENTE" ] || exit 0
 
+if [[ "$SORGENTE" == "File locale" ]]; then
+    zenity --file-selection --title="Seleziona ISO locale" --file-filter="Immagini ISO | *.iso *.ISO"
+    exit $?
+fi
+
 if [[ "$SORGENTE" == "USB / Ventoy" ]]; then
     VENTOY=$(pkexec /usr/local/sbin/ibs-ventoy-iso-mount) || {
-        zenity --error --text="Chiavetta Ventoy non trovata."
-        exit 1
+        zenity --warning --text="Ventoy non accessibile senza interferire con il boot Live. Seleziona una ISO locale; il NAS non è necessario." || true
+        zenity --file-selection --title="Seleziona ISO locale" --file-filter="Immagini ISO | *.iso *.ISO"
+        exit $?
     }
 
     [ -d "$VENTOY" ] || exit 1
@@ -24,7 +31,7 @@ if [[ "$SORGENTE" == "USB / Ventoy" ]]; then
         --file-filter="Immagini ISO | *.iso *.ISO") || exit 0
 
     [ -f "$ISO" ] || exit 1
-    printf '%s\\n' "$ISO"
+    printf '%s\n' "$ISO"
     exit 0
 fi
 

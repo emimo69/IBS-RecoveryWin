@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Configura SSH per PuTTY
+Exec=/usr/local/bin/ibs-ssh-setup
+Icon=network-server
+Terminal=false

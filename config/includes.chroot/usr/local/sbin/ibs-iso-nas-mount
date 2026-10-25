@@ -10,6 +10,6 @@ if mountpoint -q "$DEST"; then
     exit 0
 fi
 
-mount -t cifs "$NAS" "$DEST" \
+timeout 8 mount -t cifs "$NAS" "$DEST" \
     -o guest,vers=3.0,ro,nosuid,nodev,noexec
 

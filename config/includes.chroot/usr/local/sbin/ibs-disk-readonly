@@ -15,7 +15,7 @@ echo "0 $SECTORS linear $DISK 0" |
 
 DEV="/dev/mapper/$NAME"
 
-[ -b "$DEV" ] || {
+[ -b "$DEV" ] && [ "$(blockdev --getro "$DEV")" = 1 ] || {
     dmsetup remove "$NAME" 2>/dev/null || true
     exit 1
 }

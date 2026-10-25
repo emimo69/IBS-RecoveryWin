@@ -1,0 +1,8 @@
+#!/bin/bash
+set -euo pipefail
+for NAME in Avvia-QEMU Ripara-Windows TeamViewer-ID-Password Configura-SSH; do
+    FILE="$HOME/Desktop/$NAME.desktop"
+    [[ -f "$FILE" && ! -L "$FILE" && -O "$FILE" ]] || continue
+    chmod u+x "$FILE"
+    gio set "$FILE" metadata::trusted true || echo "Impossibile impostare attendibilità: $FILE" >&2
+done

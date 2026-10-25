@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Attendibilità launcher IBS
+Exec=/usr/local/bin/ibs-trust-launchers
+OnlyShowIn=XFCE;
+Terminal=false
