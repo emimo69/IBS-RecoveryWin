@@ -1,12 +1,16 @@
-# IBS-RecoveryWin R4D — test parser QEMU OVMF con fixture
+# Test E2E runner Git automatico — prova innocua
 
-Leggi AGENTS.md. R4B e R4C pubblicate: R4C commit 6f8e4c3, 9 test VM, 7 media e 3 di percorsi passati. NON ripetere R4C né riapplicare la patch R4C-review.patch. Conserva R2/R3.
+Leggi AGENTS.md. Questo è SOLO un collaudo end-to-end della nuova pubblicazione Git dal runner host, dopo 13 test offline passati.
 
-1. Verifica che il repository sia pulito; se trovi file modificati o non tracciati, NON cancellare né sovrascrivere nulla e segnala il blocco.
-2. Verifica sintassi reale QEMU per opzioni -drive OVMF, soprattutto virgole duplicate e nomi con spazi. Usa soltanto fixture temporanee, niente NAS, USB, dischi fisici, WinRE/Windows o build ISO. Se puoi testare il parser con QEMU in sicurezza, usa timeout e cleanup garantito. Se non puoi, documenta il limite senza simulare un test reale.
-3. Aggiungi test ripetibile non distruttivo; preserva protezione dischi, launcher, SSH, TeamViewer, IP. Esegui test preesistenti.
-4. Pubblica docs/R4D-QEMU-VALIDATION.md con comandi/prove reali, limiti e piano per futuro test WinRE con SOLO disco virtuale previa autorizzazione.
-5. Commit/push delle sole modifiche validate quando i permessi lo consentono; se sandbox read-only blocca scrittura o git, conserva patch e rapporto locale e dichiara PENDING senza aggirare sandbox.
-6. NON modificare timer, servizi, CODEX-TASK.md, ISO R2/R3, cache, altri rami; niente build.
+1. Crea il file docs/RUNNER-PUBLISH-SMOKE.md con questo contenuto preciso:
+# Prova pubblicazione automatica runner
+Data: 2026-10-26
+Esito del task Codex: file di prova creato per il runner host.
+Nessuna ISO, VM, dispositivo fisico o servizio modificato.
 
-Il task è completato soltanto con test e rapporto pubblicati su GitHub; altrimenti segnala con precisione il blocco.
+2. Non modificare NESSUN altro file. Non creare patch PENDING, rapporti aggiuntivi o backup.
+3. Non chiamare git add, git commit, git push o git pull: deve occuparsene il runner host per verificare la nuova funzione.
+4. Non avviare ISO, QEMU, servizi, rete, mount, NAS, USB, build o dischi.
+5. Termina con esito zero solo dopo aver verificato che il file esista e contenga le quattro righe richieste.
+
+Il runner host deve rilevare il solo file docs/RUNNER-PUBLISH-SMOKE.md, eseguire i test e pubblicarlo. Non dichiarare pubblicazione Git dal processo Codex.
