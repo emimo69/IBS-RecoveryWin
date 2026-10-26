@@ -111,6 +111,8 @@ def main():
     except BaseException as exc:
         report['error'] = repr(exc)
     finally:
+        # Cancel watchdog before cleanup: SIGALRM must not interrupt process reap.
+        signal.alarm(0)
         if proc is not None:
             try:
                 proc.wait(timeout=5)
@@ -125,7 +127,6 @@ def main():
             report['reaped'] = proc.poll() is not None
         if conn is not None:
             conn.close()
-        signal.alarm(0)
         signal.signal(signal.SIGALRM, old)
         report['duration_seconds'] = round(time.monotonic() - started, 3)
         report['after'] = {str(p): digest(p) for p in (CODE, VARS)}
