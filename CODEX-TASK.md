@@ -1,11 +1,14 @@
-# IBS-RecoveryWin — avanzamento R4, QEMU/WinRE e fonti ISO (senza dischi fisici)
+# PRIORITÀ ASSOLUTA — riparazione timer automatico Codex
 
-Leggi AGENTS.md; esegui questo incarico limitato al progetto e ramo ibs-recoverywin-1.0. La R3 è base stabile: preservare integralmente R2/R3 e cache. Questa attività deve poter essere svolta anche in sessione interattiva mentre il timer unattended è in diagnosi. Non toccare script dell'automazione, stato del timer, CODEX-AUTOSTART-TASK.md, altri progetti, dati/credenziali o dischi fisici.
+Leggi AGENTS.md e svolgi questo incarico PRIMA di R4/QEMU. Non toccare ISO R2/R3, dischi fisici, altri progetti, credenziali, SSH o TeamViewer.
 
-1. Esamina i launcher "Monta ISO" e "Avvia OS", i moduli media.py e vm.py e i test relativi. Fai verifiche statiche e mock non distruttivi su selezione ISO NAS/Ventoy, quoting dei percorsi contenenti spazi, avvio CD-ROM UEFI OVMF/Legacy e isolamento del disco base. Testa che nessuna opzione possa aprire disco reale in scrittura per errore e che Ventoy/Live siano esclusi.
-2. Verifica presenza di pacchetti, OVMF, qemu-system, qemu-img, GUI, e gestione errore in assenza di /dev/kvm. Non dichiarare boot WinRE/Windows riuscito finché non c'è una prova reale su hardware adatto. Non montare NAS né chiavetta reali nel server di sviluppo.
-3. Risolvi SOLO difetti riproducibili con test in ambiente mock/immagini fittizie. Aggiungi regressioni mirate. Non avviare Windows su disco fisico e non collegare il QCOW2 Windows test reale.
-4. Verifica che gli script del desktop, i servizi SSH/TeamViewer e l'indicatore IP non vengano alterati; nessuna nuova build ISO senza motivo, e non sovrascrivere vecchie ISO.
-5. Esegui test disponibili, commit e push per gruppi piccoli, senza force; se la sandbox impedisce commit/push, non inventare successo: registra esattamente l'ostacolo. Non tentare di aggirare la sandbox o elevare i privilegi. Conserva tutti i cambiamenti e non ripetere lavori conclusi.
+SITUAZIONE CONFERMATA: il timer systemd --user ibs-task-watch.timer controlla GitHub ogni 2 minuti, unattended è abilitato. I nuovi incarichi sono rilevati, ma Codex non interattivo termina con exit_code 1. Git locale e remoto erano sincronizzati e puliti; il vecchio runner registra 'verifica_git', poi 'hash_non_ripetibile'. Il servizio ha ProtectSystem=strict, ProtectHome=read-only, NoNewPrivileges=true, PrivateTmp=true; in passato Codex workspace-write ha dato errori bubblewrap. Non è ancora dimostrata la causa di exit 1.
 
-Obiettivo: rendere robusta la prossima fase WinRE/QEMU con prove statiche misurabili senza causare regressioni.
+1. Studia davvero automation/unattended.py, automation/task-watch, automation/systemd/ibs-task-watch.service, automation/enable, gli script test e i record .task-watch. Distingui problemi delle restrizioni systemd da quelli della sandbox Codex, della quota, dell'autenticazione e del prompt. Non tirare a indovinare.
+2. Verifica con un prompt innocuo 'Rispondi OK' in una prova senza modifica di file, prima come utente utente e poi sotto il servizio systemd. Raccogli solo codice uscita e categoria di errore senza registrare output privati, token o credenziali.
+3. Correggi la causa effettiva con privilegi minimi, senza bypassare la sandbox o usare dangerous flags. Mantieni lock, no doppie sessioni, deduplicazione per hash e blocco retry infiniti. Un task fallito può essere riprovato soltanto con una modalità esplicita e controllata.
+4. Test di regressione e verifiche Git, commit e push ove consentiti. Se la sandbox vieta Git o systemd, conserva le patch, spiega l'ostacolo e indica un solo comando host strettamente necessario. Non aggirare i permessi.
+5. Esegui un collaudo end-to-end con incarico fittizio e non distruttivo: timer avvia Codex senza Yes e verifica prima running e poi success. Se questo non è possibile, non dichiarare timer funzionante.
+6. SOLO DOPO la riparazione riprendi R4 su QEMU/WinRE, senza avviare VM su dischi fisici né alterare ISO precedenti.
+
+Procedi senza richiedere continue conferme, nei limiti dei permessi disponibili.
