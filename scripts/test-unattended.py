@@ -22,6 +22,7 @@ class Tests(unittest.TestCase):
         self.r.execute = __import__('unittest.mock', fromlist=['Mock']).Mock(return_value=(0, False))
         self.r.git = self.git
         self.r.verify = lambda: True
+        self.r.publish_verified = lambda blob: 'pubblicato'
         (self.r.state / 'unattended-enabled').touch()
         self.busy = patch.object(m, 'busy', return_value=False)
         self.busy.start()
@@ -38,6 +39,12 @@ class Tests(unittest.TestCase):
     def marker(self):
         return json.loads((self.r.state / 'runs' / ('b'*40 + '.json')).read_text())
     def tick(self): self.r.run('unattended')
+    def test_no_deliverable_is_failure(self):
+        self.r.publish_verified = lambda blob: (_ for _ in ()).throw(RuntimeError('nessuna_modifica_prodotta'))
+        self.tick()
+        self.assertEqual(self.marker()['status'], 'failed')
+        self.assertEqual(self.marker()['reason'], 'nessuna_modifica_prodotta')
+
     def test_success_dedup(self):
         self.tick(); self.tick()
         self.assertEqual(self.marker()['status'], 'success')
