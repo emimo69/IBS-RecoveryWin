@@ -1,16 +1,17 @@
-# SMOKE E2E B — collaudo pubblicazione reale e verifica consegna
+# Smoke C — prova end-to-end con runner aggiornato
 
-Leggi AGENTS.md. Questo è un test innocuo del runner, non del progetto Live.
+Leggi AGENTS.md. Questo incarico testa solo la consegna automatica di un file testuale. Non usare git add, commit, push, pull, fetch; li esegue il runner host.
 
-Crea un solo file NUOVO: docs/RUNNER-PUBLISH-SMOKE-B.md
-Contenuto esatto:
-# Smoke B — pubblicazione automatica
-Task: IBS-RecoveryWin runner
+Crea ESATTAMENTE un file nuovo: docs/RUNNER-PUBLISH-SMOKE-C.md
+
+Contenuto richiesto:
+# IBS RecoveryWin — smoke C
 Data: 2026-10-26
-Codex ha creato questo documento; solo il runner host puo pubblicarlo.
+Obiettivo: verificare consegna e pubblicazione automatica dal runner.
+Nessun disco, ISO, servizio o macchina virtuale modificati.
 
-Verifica che il file esista in locale e abbia il contenuto richiesto. Non modificare nessun altro file. Non creare patch o file PENDING. Non eseguire git add, commit, push, pull o fetch: la pubblicazione deve essere fatta dal runner host.
+Verifica con controllo locale che esista, sia un file ordinario e abbia esattamente queste quattro righe. Non toccare altri file; non creare rapporti, backup o patch aggiuntive. Non modificare CODEX-TASK.md.
 
-Non eseguire QEMU, ISO, VM, mount, NAS, USB, dischi, servizi, build né interventi di sistema. Non leggere segreti. Non cambiare il timer o altri progetti. Concludi solo dopo avere creato davvero il documento.
+Non accedere a credenziali, dispositivi fisici, NAS, USB, VM o servizi. Nessuna build. Non eseguire QEMU. Non disabilitare sandbox o permessi. Se il file non può essere creato, termina segnalando fallimento.
 
-Il test e superato soltanto quando docs/RUNNER-PUBLISH-SMOKE-B.md compare come nuovo commit su GitHub, non quando Codex restituisce exit zero.
+L'esito atteso è un commit GitHub nuovo contenente docs/RUNNER-PUBLISH-SMOKE-C.md. Un exit zero senza file non costituisce successo.
