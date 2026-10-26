@@ -98,6 +98,50 @@ class Runner:
                               cwd=self.project, stdout=subprocess.DEVNULL,
                               stderr=subprocess.DEVNULL, timeout=120).returncode == 0
 
+    def publish_verified(self, task_blob):
+        """Host-side publisher: allow only additive/modified non-sensitive source and tests.
+
+        Codex's workspace sandbox cannot write .git or use GitHub network. The
+        service's ordinary user account performs checked staging and publication.
+        """
+        import re
+        changed = self.git('status', '--porcelain', '--untracked-files=all').splitlines()
+        if not changed:
+            return 'nessuna_modifica'
+        paths = []
+        for line in changed:
+            if len(line) < 4 or line[:2] not in (' M', 'M ', 'MM', '??'):
+                raise RuntimeError('modifica_non_autorizzata')
+            path = line[3:]
+            if not re.fullmatch(r'(?:scripts/test-[a-zA-Z0-9_-]+\\.py|docs/[a-zA-Z0-9_./-]+\\.md|R[0-9][A-Z]?-PROGRESS\\.md|config/includes\\.chroot/usr/local/lib/ibs-recovery/[a-zA-Z0-9_-]+\\.py)', path):
+                raise RuntimeError('percorso_non_autorizzato')
+            target = self.project / path
+            if target.is_symlink() or not target.is_file() or target.stat().st_size > 150000:
+                raise RuntimeError('file_non_sicuro')
+            paths.append(path)
+        if self.git('rev-parse', 'HEAD:CODEX-TASK.md') != task_blob:
+            raise RuntimeError('task_modificato')
+        # Confirm remote has not advanced since this worker fetched the task.
+        before = self.git('rev-parse', 'HEAD')
+        remote = self.git('ls-remote', REMOTE, f'refs/heads/{BRANCH}').split()
+        if not remote or remote[0] != before:
+            raise RuntimeError('remote_divergente')
+        # Do not stage or upload credentials, executables, generated binaries or patches.
+        self.git('add', '--', *paths)
+        self.git('diff', '--cached', '--check')
+        # All static and software tests must pass BEFORE a commit is created.
+        for cmd in (['python3','-B','scripts/test-vm.py'],
+                    ['python3','-B','scripts/test-media.py'],
+                    ['bash','scripts/verify-config.sh']):
+            subprocess.run(cmd,cwd=self.project,check=True,stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL,timeout=120)
+        self.git('commit', '-m', 'Codex: modifiche verificate automaticamente')
+        self.git('push', 'origin', f'HEAD:{BRANCH}')
+        published = self.git('ls-remote', REMOTE, f'refs/heads/{BRANCH}').split()
+        if not published or published[0] != self.git('rev-parse', 'HEAD'):
+            raise RuntimeError('push_non_confermato')
+        return 'pubblicato'
+
     def execute(self, prompt):
         # Keep lock inherited by the process tree, even if the supervisor crashes.
         child = subprocess.Popen(['codex', '--ask-for-approval', 'never', 'exec',
@@ -215,7 +259,7 @@ class Runner:
                   'non riavviare host, non cancellare ISO. Build solo se autorizzata dal task. '
                   'Nessuna escalation o aggiramento sandbox. Non leggere o pubblicare credenziali. '
                   'Correggi i fallimenti dei test consentiti e rieseguili. Esegui verifiche reali, '
-                  'commit e push; se vietati o push fallisce fermati con diagnosi. '
+                  'NON eseguire commit o push: il runner pubblica dopo le verifiche. '
                   'Non modificare CODEX-TASK.md. Riprendi eventuale lavoro incompleto già presente.')
         try:
             rc, quota = self.execute(prompt)
@@ -223,13 +267,17 @@ class Runner:
                 record.update(status='quota_in_attesa', exit_code=rc,
                               next_attempt=int(time.time()) + 21600)
             else:
-                remote = self.git('ls-remote', REMOTE, f'refs/heads/{BRANCH}').split()
-                ok = (rc == 0 and self.verify() and self.clean() and remote and
-                      remote[0] == self.git('rev-parse', 'HEAD') and
-                      self.git('rev-parse', 'HEAD:CODEX-TASK.md') == blob)
+                if rc == 0:
+                    publication = self.publish_verified(blob)
+                    remote = self.git('ls-remote', REMOTE, f'refs/heads/{BRANCH}').split()
+                    ok = (self.verify() and self.clean() and remote and
+                          remote[0] == self.git('rev-parse', 'HEAD') and
+                          self.git('rev-parse', 'HEAD:CODEX-TASK.md') == blob)
+                else:
+                    publication, ok = 'nessuna', False
                 record.update(status='success' if ok else 'failed', exit_code=rc,
                               reason=('codex_' + getattr(self, 'last_cause', 'non_classificato') if rc != 0
-                                      else 'verifica_git' if not ok else 'git_e_verify_config_verificati'))
+                                      else publication if ok else 'verifica_git'))
         except Exception:
             record.update(status='failed', exit_code=125, reason='verifica_o_avvio_fallito')
         self.write('runs/' + blob + '.json', record)
