@@ -1,14 +1,15 @@
-# R5 — Chiusura verifica OVMF e preparazione collaudo WinRE su QCOW2
+# R6 — preflight per collaudo WinRE su QCOW2
 
-Leggi AGENTS.md e R4D-PENDING.md. Codex e avviato INTERATTIVAMENTE, non tramite timer. R4B/R4C sono gia completate; R4D-PENDING.md documenta un test reale del parser QEMU con firmware sintetico, non un avvio OVMF. I permessi Linux di docs sono stati corretti. Ultimo push utente ha sincronizzato il ramo ibs-recoverywin-1.0.
+Leggi AGENTS.md e R5-WINRE-TEST-PLAN.md. Codex lavora INTERATTIVAMENTE. R5 gia pubblicata: non ripeterla.
 
-OBIETTIVO: riprendere il lavoro utile senza ricominciare test inutili; finalizzare il rapporto R4D e preparare il prossimo collaudo WinRE.
+Obiettivo: verificare i prerequisiti del futuro boot WinRE reale prima di avviarlo; questo incarico NON autorizza il boot WinRE, la creazione di dischi reali o compilazioni ISO.
 
-1. Controlla ramo, git status e presenza del test scripts/test-qemu-ovmf-parser.py. NON ripetere la patch R4D-PENDING.patch (gia salvata a riferimento). Non eliminare file di altri task. Se esistono nuove modifiche non tue, fermati e chiedi istruzioni.
-2. Esegui il test reale parser QEMU gia implementato in scripts/test-qemu-ovmf-parser.py, 9 test VM, 7 test media, 3 test percorsi, verify-config.sh; se test gia coperti e identici non inventare nuovi collaudi. Nessun boot WinRE/Windows, nessun accesso dischi fisici, NAS o Ventoy. Mantieni ISO R2 e R3 immutate; niente build.
-3. Crea docs/R4D-QEMU-VALIDATION.md riportando rigorosamente le prove gia documentate in R4D-PENDING.md, aggiornate ai test realmente rieseguiti. Distingui test parser su fixture da boot OVMF, WinRE, TeamViewer o NAS/USB non verificati.
-4. Prepara un piano operativo R5-WINRE-TEST-PLAN.md che preveda OVMF CODE reale read-only, copia temporanea VARS, una ISO WinRE autorizzata read-only e SOLTANTO un disco virtuale QCOW2 con overlay; controlli preliminari e punti di stop, timeout e cleanup, disabilitazione rete VM, nessun passthrough disco. NON avviare ancora WinRE e non utilizzare disco Windows reale.
-5. Git: verifica il diff; se git commit/push dalla sandbox viene negato NON creare una catena di patch e NON dichiarare completato. Conserva i file, segnala in modo sintetico all'utente il solo comando necessario nella shell host. Non disabilitare sandbox o richiedere root. Se commit/push consentiti, pubblica e verifica il ramo remoto.
-6. Non modificare CODEX-TASK.md, runner/timer, altri progetti, credenziali, token o ISO; nessuna regressione TeamViewer/SSH/IP.
+1. Verifica branch ibs-recoverywin-1.0, checkout pulita. Non toccare altri progetti, ISO R2/R3 o timer.
+2. In sola lettura verifica qemu-system-x86_64, qemu-img, OVMF CODE/VARS reali compatibili, /dev/kvm e spazio disponibile. Cerca possibili ISO WinRE solo nei percorsi locali del progetto e /opt/ibs-recoverywin-test; niente NAS, USB, /dev o media fisici. Documenta disponibilita effettiva, versioni e limiti. Non scegliere altre ISO in sostituzione.
+3. Implementa scripts/preflight-r6-winre.py: deve controllare file e percorsi ISO/firmware/QCOW2 passati esplicitamente, rifiutare device, symlink sospetti, /dev, /proc, /sys, NAS e USB, immagini incoerenti e catene QCOW2 inattese. Non lanciare QEMU o scrivere immagini. Errori comprensibili e status nonzero.
+4. Implementa scripts/test-r6-preflight.py: test offline con fixture in cartelle temporanee, senza dischi reali e senza privilegi; verifica anche rifiuto dei casi pericolosi.
+5. Scrivi docs/R6-PREFLIGHT.md con prove, eventuale mancanza di KVM, ISO WinRE ancora da indicare/autorizzare, piano di lancio isolato OVMF con una sola QCOW2 quando sara autorizzato.
+6. Esegui i test nuovi e i controlli statici opportuni senza rifare lunghe procedure gia concluse; git diff --check. Se la sandbox blocca git commit/push, conserva i file e dai un solo comando breve per la shell host. Non modificare runner, servizi, codice TeamViewer/SSH, ISO, credenziali, pacchetti o rete. Nessuna build.
+7. Non dichiarare avvenuto boot WinRE o Windows: e solo la fase preparatoria. Stop prima di qualunque operazione su dischi o VM.
 
-Consegna: rapporto R4D completo e piano sicuro di collaudo WinRE. Lo sviluppo concreto prosegue solo dopo verifica; non consumare tempo sul timer.
+Consegna: verifiche preliminari R6 concrete, script preflight e test, documento dei prerequisiti.
