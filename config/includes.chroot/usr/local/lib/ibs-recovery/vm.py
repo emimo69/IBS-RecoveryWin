@@ -51,8 +51,8 @@ def qemu_args(*,kind,fd,firmware,kvm,code=None,variables=None,overlay=None,base_
           '-device','ich9-ahci,id=ibs-ahci','-add-fd',f'fd={fd},set=1,opaque=ibs-base']
     if firmware=='uefi':
         if not code or not variables:raise MediaError('OVMF CODE/VARS mancanti.')
-        argv+=['-drive','if=pflash,format=raw,unit=0,readonly=on,file='+str(code),
-               '-drive','if=pflash,format=raw,unit=1,file='+str(variables)]
+        argv+=['-drive','if=pflash,format=raw,unit=0,readonly=on,file='+str(code).replace(',',',,'),
+               '-drive','if=pflash,format=raw,unit=1,file='+str(variables).replace(',',',,')]
     def block(value):argv.extend(['-blockdev',json.dumps(value,separators=(',',':'))])
     readonly=not direct or kind=='iso'
     block({'driver':base_driver,'filename':'/dev/fdset/1','node-name':'ibs-file','read-only':readonly,'auto-read-only':False})

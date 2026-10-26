@@ -15,6 +15,15 @@ import media
 import vm
 
 class VMTests(unittest.TestCase):
+    def test_ovmf_commas_and_spaces(self):
+        args=vm.qemu_args(kind='iso',fd=4,firmware='uefi',kvm=False,
+                          code='/fixture con spazi/CODE,uno,,due.fd',
+                          variables='/fixture con spazi/VARS,tre.fd')
+        drives=[args[i+1] for i,value in enumerate(args) if value=='-drive']
+        self.assertEqual(drives,[
+            'if=pflash,format=raw,unit=0,readonly=on,file=/fixture con spazi/CODE,,uno,,,,due.fd',
+            'if=pflash,format=raw,unit=1,file=/fixture con spazi/VARS,,tre.fd'])
+
     def rows(self):
         return media.inventory({'blockdevices':[{'name':'/dev/mock','type':'disk','size':1024,'maj:min':'8:0','serial':'test','mountpoints':[],
           'children':[{'name':'/dev/mock1','type':'part','size':1000,'maj:min':'8:1','label':'OS','mountpoints':[]}]}]})
