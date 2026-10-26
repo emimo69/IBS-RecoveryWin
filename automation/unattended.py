@@ -113,7 +113,7 @@ class Runner:
             if len(line) < 4 or line[:2] not in (' M', 'M ', 'MM', '??'):
                 raise RuntimeError('modifica_non_autorizzata')
             path = line[3:]
-            if not re.fullmatch(r'(?:scripts/test-[a-zA-Z0-9_-]+\\.py|docs/[a-zA-Z0-9_./-]+\\.md|R[0-9][A-Z]?-PROGRESS\\.md|config/includes\\.chroot/usr/local/lib/ibs-recovery/[a-zA-Z0-9_-]+\\.py)', path):
+            if not re.fullmatch(r'(?:scripts/test-[a-zA-Z0-9_-]+\.py|docs/[a-zA-Z0-9_./-]+\.md|R[0-9][A-Z]?-PROGRESS\.md|config/includes\.chroot/usr/local/lib/ibs-recovery/[a-zA-Z0-9_-]+\.py)', path):
                 raise RuntimeError('percorso_non_autorizzato')
             target = self.project / path
             if target.is_symlink() or not target.is_file() or target.stat().st_size > 150000:
