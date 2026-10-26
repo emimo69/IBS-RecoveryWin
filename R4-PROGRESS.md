@@ -1,16 +1,31 @@
-# R4B — BLOCCATO, non completato e non pubblicato
+# R4C — convalida software e rapporto aggiornato
 
-## Prove PASSATE (con comando)
-- `python3 -B scripts/test-vm.py`: 8 test esistenti passati, policy UEFI/Legacy, protezione Live/Ventoy, backing readonly/overlay e fd su fixture.
-- `python3 -B scripts/test-media.py`: 7 test esistenti passati, mount Ventoy mock readonly, percorsi con spazi/virgole e configurazione NAS statica.
-- `bash scripts/verify-config.sh`: passato, inclusa verifica remota statica e git diff --check. Nessuna build.
-- Verifica documentazione QEMU: /usr/share/doc/qemu-system-common/system/invocation.html e https://qemu-project.gitlab.io/qemu/system/invocation.html prescrivono il raddoppio delle virgole in file=.
-- Prova non distruttiva con os.open(O_CREAT|O_EXCL): creazione nella root progetto riuscita e rimossa; in .git fallisce con errno 30, Read-only file system. .git/index.lock assente. Processo UID/GID 1000; scripts/test-vm.py UID/GID 65534 e modo 0664. apply_patch sul test fallito. Non sono stati aggirati permessi.
+R4B validata nei test statici; avvio reale WinRE/Windows e NAS/USB non collaudati.
 
-## Limiti non ancora collaudati
-Avvio WinRE/Windows reale; NAS/USB reali; connessione remota esterna.
-Il difetto file= OVMF è presente; la patch proposta R4B-proposed.patch è salvata ma NON applicata né verificata. Il nuovo test non è stato eseguito. La suite esistente non dimostra che il difetto sia risolto. Selezione ISO NAS/Ventoy completa e parser QEMU reale restano da verificare.
-Commit impossibile perché .git è montata in sola lettura; push non tentato. Nessuna pubblicazione GitHub. CODEX-TASK.md invariato.
+## Verifiche reali del 26 ottobre 2026
 
-## Prossimo collaudo necessario
-Riprendere in un ambiente autorizzato con file sorgenti e .git scrivibili. Riprodurre il fallimento del nuovo test prima della correzione, applicare e verificare la patch minima a CODE/VARS senza cambiare -blockdev JSON; completare mock selezione ISO NAS/Ventoy e controllo parser QEMU su fixture, rieseguire le verifiche consentite e aggiornare questo rapporto. Quindi commit/push e verifica remota. Nessuna build ISO autorizzata.
+- Checkout inizialmente pulita, HEAD `00a570f`; commit locale `8982d22` presente. Il diff di quest’ultimo modifica solo le due righe OVMF in vm.py con `replace(',', ',,')`, aggiunge il test OVMF e aggiorna il rapporto. Nessun test originale eliminato; patch R4B non riapplicata.
+- `python3 -B scripts/test-vm.py`: PASS, 9 test, incluso CODE/VARS con spazi, virgole singole e consecutive; backing readonly, overlay, esclusione Live/Ventoy e conferma errata prima di apertura dispositivo.
+- `python3 -B scripts/test-media.py`: PASS, 7 test; fixture Ventoy e mount mock readonly, percorsi speciali, token obsoleti, permessi di attraversamento e configurazione NAS statica.
+- `python3 -B scripts/test-r4-paths.py`: PASS, 3 nuovi test ripetibili, senza montaggi, rete o processi QEMU. Selezione GUI Monta ISO da NAS e Ventoy con fixture WinRE/Acronis, spazi/virgole/Unicode e assenza Ventoy; rifiuto backend di ISO esterne e symlink verso l’esterno, file mancante, WinRE senza KVM, Acronis senza consenso TCG e Avvia OS senza KVM, prima di qualsiasi apertura o avvio; mount NAS simulato e rifiuto risposta findmnt scrivibile.
+- `bash scripts/verify-config.sh`: PASS; controlli statici configurazione, sintassi, launcher e `git diff --check`. Nessuna build.
+
+## Analisi statica e limiti
+
+La GUI passa percorsi come argomenti distinti e il helper restituisce gli errori previsti in JSON; OSError e ValueError sono gestiti. Il backend risolve il percorso prima di verificare estensione, esistenza e appartenenza a MEDIA_ROOT; il grafo QEMU usa JSON per i percorsi overlay e fd readonly per la base protetta. Nessun difetto nuovo comprovato richiede una modifica al codice operativo.
+
+Il controllo backend ammette qualunque ISO sotto MEDIA_ROOT, non vincola la richiesta alla sola sottocartella NAS/Ventoy appena selezionata nella GUI. Il messaggio “sorgente ... selezionata” è più specifico del controllo effettivo: questo limite resta documentato, senza attribuire isolamento tra sorgenti non verificato. Il riconoscimento WinRE senza KVM dipende dal nome contenente “winre”; Acronis è trattata come ISO generica e il consenso TCG non ne prova la compatibilità.
+
+Non collaudati: parser QEMU reale con OVMF, avvio WinRE/Windows/Acronis, sessione grafica Live, KVM, NAS/USB reali e connessione remota esterna. Il processo runner terminato con successo dimostra solo l’esito dei comandi software sopra riportati.
+
+## Pubblicazione impedita nell’ambiente corrente
+
+`git ls-remote origin HEAD refs/heads/main refs/heads/master` fallisce: `Could not resolve host: github.com`. Non è stato quindi possibile verificare il contenuto corrente su GitHub né confermare la pubblicazione remota del commit OVMF; la sua presenza è comprovata solo nella checkout locale.
+
+`findmnt -T .git -n -o TARGET,VFS-OPTIONS` mostra `.git` con opzione `ro`. Commit vietato dal filesystem corrente: non tentato, senza ripetere procedure già fallite né modificare permessi. Push non tentato. R4C non è conclusa né pubblicata. Patch locale `R4C-review.patch` fuori dai sorgenti, contenente questo rapporto e il nuovo test, per revisione nella shell host autorizzata.
+
+## Prossimi passi
+
+1. Dalla shell host con repository scrivibile e rete disponibile, verificare GitHub e il diff locale, rieseguire i tre script test e verify-config, quindi commit e push delle sole modifiche R4C e verifica dell’hash remoto sul branch `ibs-recoverywin-1.0`. Fermarsi se il push fallisce.
+2. Con autorizzazione specifica, predisporre un successivo test WinRE con ISO selezionata e fixture virtuali, registrando firmware, disponibilità KVM, log e risultato osservabile. Il parser e l’avvio reale restano da verificare.
+3. Mantenere NAS/USB e dischi fisici fuori dal collaudo corrente. Nessuna modifica a timer, servizi, CODEX-TASK.md, ISO R2/R3, cache, utenti o altri progetti; nessuna build ISO eseguita.
