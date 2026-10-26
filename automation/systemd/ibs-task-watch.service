@@ -9,9 +9,9 @@ WorkingDirectory=/opt/ibs-recoverywin-1.0
 ExecStart=/opt/ibs-recoverywin-1.0/automation/task-watch unattended
 UMask=0077
 NoNewPrivileges=true
-ProtectSystem=strict
-ReadWritePaths=/opt/ibs-recoverywin-1.0
-ProtectHome=read-only
+# Codex invokes its own workspace-write sandbox; the outer read-only mounts
+# make bubblewrap fail before Codex can start. Keep this as an unprivileged
+# user service with NoNewPrivileges, PrivateTmp and Codex's inner sandbox.
 PrivateTmp=true
 TimeoutStartSec=2h 2min
 TimeoutStopSec=20
