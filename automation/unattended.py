@@ -189,6 +189,14 @@ class Runner:
                             cause = category
                             quota |= category == 'quota'
                     buffers[key.fd] = data[-4096:]
+            # A final stderr/stdout fragment may have no terminating newline.
+            # Classify it too, without persisting the underlying output.
+            for tail in buffers.values():
+                if tail:
+                    category = classify_error(tail.decode('utf-8', 'replace'))
+                    if category != 'non_classificato':
+                        cause = category
+                        quota |= category == 'quota'
             self.last_cause = cause
             return child.wait(timeout=max(1, deadline-time.monotonic())), quota
         except (TimeoutError, subprocess.TimeoutExpired, InterruptedError):
