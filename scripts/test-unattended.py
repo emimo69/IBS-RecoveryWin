@@ -96,6 +96,23 @@ class Tests(unittest.TestCase):
         self.r.verify = lambda: False
         self.tick()
         self.assertEqual(self.marker()['status'], 'failed')
+    def test_error_without_trailing_newline(self):
+        import subprocess
+        original = subprocess.Popen
+        def fake_codex(*args, **kwargs):
+            return original(['python3', '-c',
+                             "import sys; sys.stderr.write('Read-only file system'); sys.exit(1)"],
+                            **kwargs)
+        self.r.lock = (self.r.state / 'lock').open('a')
+        try:
+            with patch.object(m.subprocess, 'Popen', side_effect=fake_codex):
+                rc, quota = m.Runner.execute(self.r, 'mock')
+            self.assertEqual(rc, 1)
+            self.assertFalse(quota)
+            self.assertEqual(self.r.last_cause, 'sandbox_permessi')
+        finally:
+            self.r.lock.close()
+
     def test_real_child_termination(self):
         import subprocess
         original = subprocess.Popen
