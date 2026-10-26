@@ -107,7 +107,7 @@ class Runner:
         import re
         changed = self.git('status', '--porcelain', '--untracked-files=all').splitlines()
         if not changed:
-            return 'nessuna_modifica'
+            raise RuntimeError('nessuna_modifica_prodotta')
         paths = []
         for line in changed:
             if len(line) < 4 or line[:2] not in (' M', 'M ', 'MM', '??'):
@@ -278,8 +278,9 @@ class Runner:
                 record.update(status='success' if ok else 'failed', exit_code=rc,
                               reason=('codex_' + getattr(self, 'last_cause', 'non_classificato') if rc != 0
                                       else publication if ok else 'verifica_git'))
-        except Exception:
-            record.update(status='failed', exit_code=125, reason='verifica_o_avvio_fallito')
+        except Exception as exc:
+            category = str(exc) if str(exc) in ('nessuna_modifica_prodotta','modifica_non_autorizzata','percorso_non_autorizzato','file_non_sicuro','task_modificato','remote_divergente','push_non_confermato') else 'verifica_o_avvio_fallito'
+            record.update(status='failed', exit_code=125, reason=category)
         self.write('runs/' + blob + '.json', record)
         self.status(record['status'], task=blob, exit_code=record['exit_code'],
                     reason=record.get('reason', 'nessuna'))
