@@ -41,8 +41,14 @@ def qmp(command):
         stream = conn.makefile('rwb', buffering=0)
         stream.readline()
         stream.write(b'{"execute":"qmp_capabilities"}\n')
-        while b'"return"' not in stream.readline():
-            pass
+        while True:
+            line = stream.readline()
+            if not line:
+                raise RuntimeError('QMP closed during capabilities negotiation')
+            if b'"error"' in line:
+                raise RuntimeError('QMP rejected capabilities negotiation')
+            if b'"return"' in line:
+                break
         stream.write(json.dumps({'execute': command}).encode() + b'\n')
         while True:
             line = stream.readline()
