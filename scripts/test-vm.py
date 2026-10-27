@@ -54,17 +54,16 @@ class VMTests(unittest.TestCase):
         self.assertIn('tcg',args);self.assertIn('max',args);self.assertIn('order=d',args)
         self.assertNotIn('-drive',args)
         self.assertIn('ide-cd,drive=ibs-base,bus=ibs-ahci.0',args)
-    def test_direct_is_separate_and_identity_confirmation(self):
+    def test_direct_is_separate(self):
         disk=self.rows()[0]
-        self.assertTrue(vm.direct_phrase(disk).startswith('SCRIVI /dev/mock '))
         args=vm.qemu_args(kind='disk',fd=4,firmware='legacy',kvm=True,direct=True)
         graph=json.loads(args[args.index('-blockdev')+1])
         self.assertFalse(graph['read-only'])
         self.assertNotIn('ibs-disk',' '.join(args))
-    def test_direct_bad_confirmation_never_opens_device(self):
-        rows=self.rows()
+    def test_direct_busy_disk_never_opens_device(self):
+        rows=self.rows();rows[1]['mountpoints']=['/media/admin/Windows']
         with patch.object(vm,'ensure_live_medium'),patch.object(vm,'read_inventory',return_value=rows),patch.object(vm.os,'open') as opened:
-            with self.assertRaises(media.MediaError):vm.open_disk(media.fingerprint(rows[0]),True,'conferma errata')
+            with self.assertRaises(media.MediaError):vm.open_disk(media.fingerprint(rows[0]),True,'')
             opened.assert_not_called()
     def test_os_readonly_fd_denies_write_on_fixture(self):
         with tempfile.TemporaryDirectory(dir='/opt/ibs-recoverywin-1.0',prefix='.vm-test-') as tmp:
@@ -78,7 +77,8 @@ class VMTests(unittest.TestCase):
     def test_guards_and_exclusive_open_are_present(self):
         source=Path(vm.__file__).read_text()
         self.assertIn('os.O_EXCL|os.O_NOFOLLOW|os.O_CLOEXEC',source)
-        self.assertIn("confirmation!=direct_phrase(disk)",source)
+        self.assertIn('disk_reasons(again,fresh,direct)',source)
+        self.assertNotIn('confirmation!=direct_phrase(disk)',source)
         self.assertIn('fresh=read_inventory()',source)
         self.assertIn('pass_fds=(fd,)',source)
         self.assertNotIn('shell=True',source)
