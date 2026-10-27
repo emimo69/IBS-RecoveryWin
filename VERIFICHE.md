@@ -24,7 +24,7 @@ Errore segnalato dall’utente: il driver `file` richiedeva un file regolare per
 
 Test QEMU reale eseguito come uid 1000 con fdset: lettura/scrittura e verifica di 4096 byte nel file sottostante superate su file regolare, loop con settori 512 e loop con settori 4096. Tutti i loop sono stati creati appositamente da file temporanei e rimossi a fine test; nessun disco fisico usato.
 
-Il test ha rilevato anche che IDE QEMU rifiuta settori logici 4096. Questi usano ora NVMe emulato; stornvme.sys è presente nella WIM. Il test prova l’apertura e la scrittura dal backend QEMU, non il riconoscimento 4Kn in WinRE né la selezione grafica nella live. La ISO con entrambe le correzioni è in ricostruzione.
+Il test ha rilevato anche che IDE QEMU rifiuta settori logici 4096. Questi usano ora NVMe emulato; stornvme.sys è presente nella WIM. Il test prova l’apertura e la scrittura dal backend QEMU, non il riconoscimento 4Kn in WinRE né la selezione grafica nella live. La ISO con entrambe le correzioni è stata generata: IBS-RecoveryWin-2.0-fix-teamviewer-winre-amd64.hybrid.iso (circa 2,3 GB). vm.py, ibs-remote, ibs-teamviewer-ui e il file autostart sono stati riletti dal filesystem SquashFS e confrontati byte per byte con i sorgenti. Catalogo BIOS/UEFI verificato. Non è ancora stato eseguito un nuovo avvio completo di questa ISO.
 
 ## Appunti WinRE dopo la segnalazione
 
