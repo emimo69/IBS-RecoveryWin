@@ -24,7 +24,8 @@ trap 'error_message="TeamViewer: preparazione interrotta; riavviare il servizio.
 install -d -m 0755 /mnt
 # Clear previous session credentials before any operation that can fail.
 publish 'TeamViewer: inizializzazione in corso, credenziali non ancora disponibili.'
-# Same license, GUI, ID and final-password sequence as NAS Rescue PXE 0.6.6.
+# Accept the license and restart the system daemon like NAS Rescue PXE 0.6.6.
+# Start the user GUI only after the daemon ID and personal password are ready.
 teamviewer license accept >/dev/null 2>&1 || true
 systemctl restart teamviewerd.service
 # Attende daemon TeamViewer
@@ -50,7 +51,7 @@ do
 done
 
 # ----------------------------------------------------------
-# Riaggancia la GUI TeamViewer alla sessione X11
+# Legge l'ambiente della sessione XFCE per avviare la GUI in seguito
 # ----------------------------------------------------------
 
 if [ -n "$XPID" ]
@@ -79,23 +80,6 @@ then
         head -1
     )
 
-    pkill -u admin -f '/opt/teamviewer/tv_bin/TeamViewer' \
-        >/dev/null 2>&1 || true
-
-    sleep 2
-
-    runuser -u admin -- env \
-        HOME=/home/admin \
-        USER=admin \
-        LOGNAME=admin \
-        DISPLAY="${DISPLAY_VAR:-:0}" \
-        XAUTHORITY="${XAUTH_VAR:-/home/admin/.Xauthority}" \
-        DBUS_SESSION_BUS_ADDRESS="${DBUS_VAR:-}" \
-        XDG_RUNTIME_DIR="${XDG_RUNTIME:-/run/user/1000}" \
-        /opt/teamviewer/tv_bin/TeamViewer \
-        >/run/ibs-teamviewer-gui.log 2>&1 &
-
-    sleep 5
 fi
 
 # ----------------------------------------------------------
@@ -152,6 +136,22 @@ if [ "$ready" != true ]; then
     error_message='TeamViewer: configurazione password fallita. Consultare journalctl -u ibs-remote.'
     exit 1
 fi
+# A GUI opened while TeamViewer is still creating its ID can cache the
+# "daemon not running" window. Reattach it after the daemon and password are ready.
+pkill -u admin -f '/opt/teamviewer/tv_bin/TeamViewer' \
+    >/dev/null 2>&1 || true
+sleep 2
+runuser -u admin -- env \
+    HOME=/home/admin \
+    USER=admin \
+    LOGNAME=admin \
+    DISPLAY="${DISPLAY_VAR:-:0}" \
+    XAUTHORITY="${XAUTH_VAR:-/home/admin/.Xauthority}" \
+    DBUS_SESSION_BUS_ADDRESS="${DBUS_VAR:-}" \
+    XDG_RUNTIME_DIR="${XDG_RUNTIME:-/run/user/1000}" \
+    /opt/teamviewer/tv_bin/TeamViewer \
+    >/run/ibs-teamviewer-gui.log 2>&1 &
+sleep 5
 ips=$(ip -o -4 addr show scope global | awk '{print $4}' | cut -d/ -f1 | paste -sd ',' -)
 if [ -z "$ips" ]; then
     ips=$(ip -o -6 addr show scope global | awk '{print $4}' | cut -d/ -f1 | paste -sd ',' -)

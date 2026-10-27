@@ -30,8 +30,8 @@ class RemoteTests(unittest.TestCase):
             commands = {
                 'teamviewer': '''case "$1" in
 license) printf '[int32] EulaAccepted = 1\\n' > "$TEST_ROOT/tvconf/global.conf"; exit 0 ;;
-passwd) [ -f "$TEST_ROOT/gui-started" ] && [ -f "$TEST_ROOT/info-seen" ] || exit 98; printf '%s' "$2" > "$TEST_ROOT/password-set"; printf '%s\\n' "$MOCK_PASSWORD_OUTPUT"; exit "$MOCK_PASSWORD_RC" ;;
-info) [ -f "$TEST_ROOT/gui-started" ] || exit 98; touch "$TEST_ROOT/info-seen"; count=0; [ ! -f "$TEST_ROOT/info-count" ] || count=$(cat "$TEST_ROOT/info-count"); count=$((count + 1)); printf '%s' "$count" > "$TEST_ROOT/info-count"; if [ "$count" -le "$MOCK_INFO_AFTER" ]; then exit 0; fi; printf '%s\\n' "$MOCK_INFO"; exit "$MOCK_INFO_RC" ;;
+passwd) [ -f "$TEST_ROOT/info-seen" ] && [ ! -f "$TEST_ROOT/gui-started" ] || exit 98; printf '%s' "$2" > "$TEST_ROOT/password-set"; if [ "$MOCK_PASSWORD_RC" = 0 ] && [ "$MOCK_PASSWORD_OUTPUT" = ok ]; then touch "$TEST_ROOT/password-accepted"; fi; printf '%s\\n' "$MOCK_PASSWORD_OUTPUT"; exit "$MOCK_PASSWORD_RC" ;;
+info) [ ! -f "$TEST_ROOT/gui-started" ] || exit 98; touch "$TEST_ROOT/info-seen"; count=0; [ ! -f "$TEST_ROOT/info-count" ] || count=$(cat "$TEST_ROOT/info-count"); count=$((count + 1)); printf '%s' "$count" > "$TEST_ROOT/info-count"; if [ "$count" -le "$MOCK_INFO_AFTER" ]; then exit 0; fi; printf '%s\\n' "$MOCK_INFO"; exit "$MOCK_INFO_RC" ;;
 *) exit 99 ;;
 esac''',
                 'openssl': 'if [ "$MOCK_OPENSSL_RC" != 0 ]; then exit "$MOCK_OPENSSL_RC"; fi\nprintf Ab12Cd34',
@@ -39,7 +39,7 @@ esac''',
                 'sleep': ':',
                 'pgrep': 'if [ "$MOCK_DESKTOP" = yes ]; then printf 123; fi',
                 'pkill': '[ "$1 $2" = "-u admin" ] || exit 99\nprintf stopped > "$TEST_ROOT/gui-stopped"',
-                'runuser': '[ -f "$TEST_ROOT/gui-stopped" ] || exit 99\nprintf started > "$TEST_ROOT/gui-started"',
+                'runuser': '[ -f "$TEST_ROOT/gui-stopped" ] && [ -f "$TEST_ROOT/password-accepted" ] || exit 99\nprintf started > "$TEST_ROOT/gui-started"',
                 'systemctl': '''printf '%s\\n' "$1" >> "$TEST_ROOT/service-events"
 if [ "$1" = restart ]; then
     grep -Fqx '[int32] EulaAccepted = 1' "$TEST_ROOT/tvconf/global.conf"
@@ -68,8 +68,10 @@ fi''',
                 self.assertIn('TeamViewer ID: 123456789\n', content)
                 self.assertIn('IP locale: 192.0.2.10', content)
                 self.assertIn('Password: ' + (root / 'password-set').read_text(), content)
+                self.assertTrue((root / 'gui-started').is_file())
             else:
                 self.assertNotEqual(result.returncode, 0)
+                self.assertEqual((root / 'gui-started').exists(), (root / 'password-accepted').exists())
                 self.assertNotIn('Password:', content)
                 self.assertNotIn('Ab12Cd34', content)
                 self.assertNotIn('inizializzazione in corso', content)
