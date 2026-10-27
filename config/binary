@@ -10,7 +10,7 @@ LB_BINARY_FILESYSTEM="fat32"
 LB_APT_INDICES="true"
 
 # Set boot parameters
-LB_BOOTAPPEND_LIVE="boot=live components hostname=ibs-recoverywin username=admin locales=it_IT.UTF-8 keyboard-layouts=it timezone=Europe/Rome"
+LB_BOOTAPPEND_LIVE="boot=live components hostname=ibs-recoverywin-2 username=admin locales=it_IT.UTF-8 keyboard-layouts=it timezone=Europe/Rome"
 
 # Set boot parameters
 LB_BOOTAPPEND_INSTALL=""

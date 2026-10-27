@@ -3,7 +3,7 @@
 Live Debian Trixie amd64 con XFCE italiano, login automatico e SSH attivo: utente `admin`, password `admin`.
 Progetto separato dalla 1.0. I requisiti approvati sono in REQUISITI.md.
 
-TeamViewer **Host** si avvia al boot. Il servizio genera una password per ogni sessione live e salva ID, password e IP in `/mnt/teamviewer.txt` (root:admin, 0640). Il collegamento sul desktop apre il file con Mousepad. Il file risiede nella live e non viene salvato sul NAS. La connessione TeamViewer richiede rete; in caso di errore viene pubblicato lo stato, senza credenziali obsolete.
+TeamViewer **Host 15.82.6** si avvia al boot. Il servizio genera una password per ogni sessione live e salva ID, password e IP in `/mnt/teamviewer.txt` (root:admin, 0640). Il collegamento sul desktop apre il file con Mousepad. Il file risiede nella live e non viene salvato sul NAS. La connessione TeamViewer richiede rete; in caso di errore viene pubblicato lo stato, senza credenziali obsolete. L’accesso remoto autenticato va verificato con un secondo client.
 
 Mousepad e nano modificano file TXT. Nel terminale XFCE: copia `Ctrl+Maiusc+C`, incolla `Ctrl+Maiusc+V`, oppure menu del tasto destro. Clipman gestisce gli appunti della sessione.
 
@@ -14,15 +14,15 @@ Sono esclusi dischi montati, swap, dischi con dipendenze RAID/LVM e supporto del
 
 WinRE parte su richiesta dal desktop, con UEFI, 2 CPU, 2 GB RAM e KVM quando accessibile (TCG altrimenti). La ISO QNAP viene inclusa nella live: non è necessario collegarsi al NAS durante l’uso. Il sorgente NAS è stato copiato e verificato SHA256, senza modificarlo.
 
-Un componente Windows nativo condivide il testo Unicode degli appunti tra Debian e WinRE attraverso il canale privato QEMU; non apre porte sulla rete fisica e non richiede driver SPICE. Non trasferisce file o immagini. L’avvio WinRE integrato inizializza WinPE, attiva il componente, apre il prompt e mantiene l’ambiente grafico di ripristino. Nel prompt Windows si usano Ctrl+C/Ctrl+V con le scorciatoie abilitate; le prove della ISO finale devono confermare anche l’interazione grafica.
+Un componente Windows nativo condivide il testo Unicode degli appunti tra Debian e WinRE attraverso il canale privato QEMU; non apre porte sulla rete fisica e non richiede driver SPICE. Normalizza i fine riga per incollare script multilinea nel prompt WinRE. Non trasferisce file o immagini. L’avvio WinRE integrato inizializza WinPE, attiva il componente, apre il prompt e mantiene l’ambiente grafico di ripristino. La prova end-to-end della ISO WinRE integrata ha verificato appunti Unicode, DiskPart GPT/EFI/MSR/NTFS, scritture su disco e copia dalla console; vedere VERIFICHE.md.
 
 ## Preparazione e compilazione
 
 Le ISO e i binari generati non sono su GitHub. Sorgente WinRE: `/mnt/ibs-iso/ISO/IBS-WinRE.iso` (SHA256 in assets/WinRE.sha256), da copiare in `config/includes.chroot/opt/ibs/iso/IBS-WinRE.iso`.
-Dipendenze di preparazione: live-build, xorriso, wimtools e gcc-mingw-w64-x86-64-win32. I test richiedono QEMU, OVMF, xvfb, xclip e xauth.
+Dipendenze di preparazione: live-build, xorriso, genisoimage, 7-Zip, wimtools e gcc-mingw-w64-x86-64-win32. I test richiedono QEMU, OVMF, xvfb, xclip e xauth.
 
-`python3 scripts/prepare-winre.py` compila il componente e prepara/verifica solo la WIM, senza produrre ISO. La WIM preparata rimane in `.build`.
-**Solo dopo autorizzazione esplicita alla compilazione:** `sudo scripts/build-iso.sh --authorized`. Lo script integra la WIM nella copia locale WinRE preservando l’avvio BIOS/UEFI, quindi esegue live-build. Il hook blocca una build con WinRE non integrata. Le operazioni si eseguono dalla radice della 2.0. Non usare la directory 1.0.
+`python3 scripts/prepare-winre.py` compila il componente e prepara/verifica solo la WIM, senza produrre ISO. `python3 scripts/prepare-winre.py --build-iso` genera la ISO WinRE mantenendo i percorsi UDF completi e il BCD UEFI.
+**Solo dopo autorizzazione esplicita alla compilazione:** `sudo scripts/build-iso.sh --authorized`. Lo script integra la WIM nella copia locale WinRE e poi esegue live-build. Il hook blocca una build con WinRE non integrata. Le operazioni si eseguono dalla radice della 2.0. Non usare la directory 1.0.
 
 ## Verifiche
 
@@ -34,7 +34,7 @@ Dipendenze di preparazione: live-build, xorriso, wimtools e gcc-mingw-w64-x86-64
 `python3 scripts/test-clipboard-winre.py`: prova gli appunti Windows/X11 dalla VM già avviata al prompt e con rete WinPE inizializzata.
 `python3 scripts/test-clipboard-winre-gui.py`: dopo il test precedente, prova Ctrl+V nel prompt ed esecuzione del comando incollato, quindi Ctrl+A/Ctrl+C verso gli appunti X11.
 
-Stato delle verifiche e limiti: vedere VERIFICHE.md. Nessuna dichiarazione di funzionamento della live completa prima del collaudo della ISO finale.
+Stato delle verifiche e limiti: vedere VERIFICHE.md. Il collaudo della candidata live resta da eseguire.
 
 ## Cartella Public sul desktop
 
