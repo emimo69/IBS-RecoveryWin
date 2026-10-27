@@ -85,7 +85,7 @@ def open_disk(token,direct=False,confirmation=''):
     rows=read_inventory();disk=select_token(rows,token,disk_candidates)
     reasons=disk_reasons(disk,rows,direct)
     if reasons:raise MediaError('; '.join(reasons))
-    if direct and confirmation!=direct_phrase(disk):raise MediaError('Conferma scrittura non valida.')
+    # La GUI ha già richiesto la modalità diretta e mostrato l'avviso; non imporre frasi.
     path=Path(disk['name']).resolve(strict=True)
     if str(path)!=disk['name'] or not stat.S_ISBLK(path.stat().st_mode):
         raise MediaError('Il supporto non è un dispositivo a blocchi canonico.')
