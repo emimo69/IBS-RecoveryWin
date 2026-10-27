@@ -32,5 +32,6 @@ Dipendenze di preparazione: live-build, xorriso, wimtools e gcc-mingw-w64-x86-64
 `python3 scripts/test-clipboard-x11.py`: scambio testo reale con gli appunti X11 su display virtuale.
 `python3 scripts/test-winre-boot.py start`: avvia la ISO WinRE esistente con soli dischi di test basati su file, senza compilare ISO. Il comando `stop` termina la VM. Comandi `screen`, `key` e `type` consentono di ispezionare il guest (layout italiano).
 `python3 scripts/test-clipboard-winre.py`: prova gli appunti Windows/X11 dalla VM già avviata al prompt e con rete WinPE inizializzata.
+`python3 scripts/test-clipboard-winre-gui.py`: dopo il test precedente, prova Ctrl+V nel prompt ed esecuzione del comando incollato, quindi Ctrl+A/Ctrl+C verso gli appunti X11.
 
 Stato delle verifiche e limiti: vedere VERIFICHE.md. Nessuna dichiarazione di funzionamento della live completa prima del collaudo della ISO finale.

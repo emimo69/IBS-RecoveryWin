@@ -25,3 +25,9 @@ Errore segnalato dall’utente: il driver `file` richiedeva un file regolare per
 Test QEMU reale eseguito come uid 1000 con fdset: lettura/scrittura e verifica di 4096 byte nel file sottostante superate su file regolare, loop con settori 512 e loop con settori 4096. Tutti i loop sono stati creati appositamente da file temporanei e rimossi a fine test; nessun disco fisico usato.
 
 Il test ha rilevato anche che IDE QEMU rifiuta settori logici 4096. Questi usano ora NVMe emulato; stornvme.sys è presente nella WIM. Il test prova l’apertura e la scrittura dal backend QEMU, non il riconoscimento 4Kn in WinRE né la selezione grafica nella live. La ISO con entrambe le correzioni è in ricostruzione.
+
+## Appunti WinRE dopo la segnalazione
+
+Nella VM WinRE di test già avviata, test-clipboard-winre.py ha verificato lo scambio reale Unicode e multilinea fra CF_UNICODETEXT Windows e X11 in entrambe le direzioni. Successivamente test-clipboard-winre-gui.py ha impostato un comando negli appunti Linux, incollato con Ctrl+V nel prompt WinRE ed eseguito Invio: risultato del comando osservato nello screenshot. Ctrl+A/Ctrl+C ha copiato il contenuto della console verso X11, dove il marcatore è stato rilevato insieme al prompt Windows.
+
+Il componente Windows è stato avviato dal disco ausiliario della VM di test, non dal desktop di una nuova sessione della ISO finale. Il test non prova l’avvio automatico integrato nella ISO finale. Nessun disco fisico usato.
