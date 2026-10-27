@@ -31,3 +31,5 @@ zenity
 python3
 xclip
 util-linux
+
+cifs-utils

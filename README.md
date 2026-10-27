@@ -35,3 +35,7 @@ Dipendenze di preparazione: live-build, xorriso, wimtools e gcc-mingw-w64-x86-64
 `python3 scripts/test-clipboard-winre-gui.py`: dopo il test precedente, prova Ctrl+V nel prompt ed esecuzione del comando incollato, quindi Ctrl+A/Ctrl+C verso gli appunti X11.
 
 Stato delle verifiche e limiti: vedere VERIFICHE.md. Nessuna dichiarazione di funzionamento della live completa prima del collaudo della ISO finale.
+
+## Cartella Public sul desktop
+
+Il collegamento `Public` sul desktop apre `/mnt/Public`: systemd monta su richiesta `//192.168.20.123/Public` via SMB3 come ospite. Nessuna credenziale NAS è inclusa nella ISO. Se il NAS non è raggiungibile il montaggio fallisce dopo 20 secondi; la live può avviarsi senza NAS. La condivisione viene smontata dopo 120 secondi senza utilizzo e rimontata al successivo accesso.

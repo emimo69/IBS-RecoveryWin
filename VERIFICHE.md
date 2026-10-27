@@ -31,3 +31,7 @@ Il test ha rilevato anche che IDE QEMU rifiuta settori logici 4096. Questi usano
 Nella VM WinRE di test già avviata, test-clipboard-winre.py ha verificato lo scambio reale Unicode e multilinea fra CF_UNICODETEXT Windows e X11 in entrambe le direzioni. Successivamente test-clipboard-winre-gui.py ha impostato un comando negli appunti Linux, incollato con Ctrl+V nel prompt WinRE ed eseguito Invio: risultato del comando osservato nello screenshot. Ctrl+A/Ctrl+C ha copiato il contenuto della console verso X11, dove il marcatore è stato rilevato insieme al prompt Windows.
 
 Il componente Windows è stato avviato dal disco ausiliario della VM di test, non dal desktop di una nuova sessione della ISO finale. Il test non prova l’avvio automatico integrato nella ISO finale. Nessun disco fisico usato.
+
+## Public sul desktop
+
+Confermato accesso SMB ospite con smbclient e montaggio reale SMB3 in sola lettura su directory temporanea del progetto; smontato dopo verifica. Configurate unità mnt-Public.mount e mnt-Public.automount, validate con systemd-analyze verify. Collegamento Desktop/Public verso /mnt/Public. Installato cifs-utils nel chroot e aggiunto alla lista pacchetti; abilitato automount. Nessuna credenziale NAS incorporata. La presenza e il funzionamento di Public nella nuova live restano da verificare dopo la compilazione.

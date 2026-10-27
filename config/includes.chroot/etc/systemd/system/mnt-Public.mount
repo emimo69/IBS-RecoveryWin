@@ -1,0 +1,11 @@
+[Unit]
+Description=Cartella Public sul NAS IBS
+Wants=network-online.target
+After=network-online.target live-config.service
+
+[Mount]
+What=//192.168.20.123/Public
+Where=/mnt/Public
+Type=cifs
+Options=guest,vers=3.0,uid=admin,gid=admin,iocharset=utf8,nosuid,nodev
+TimeoutSec=20

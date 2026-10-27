@@ -11,3 +11,5 @@
 - Prove di sviluppo solo su dischi virtuali basati su file, senza modificare dischi reali.
 - Compilazione delle ISO autorizzata esplicitamente dall’utente il 27 ottobre 2026 con la richiesta di compilare la 2.0.
 - Commit e push GitHub a modifica completata, con verifica del riferimento remoto.
+
+- Cartella Public del NAS sul desktop, richiesta dall’utente: accesso ospite su richiesta alla condivisione //192.168.20.123/Public.

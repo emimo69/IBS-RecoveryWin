@@ -1,0 +1,10 @@
+[Unit]
+Description=Accesso su richiesta a Public sul NAS IBS
+
+[Automount]
+Where=/mnt/Public
+DirectoryMode=0755
+TimeoutIdleSec=120
+
+[Install]
+WantedBy=multi-user.target
