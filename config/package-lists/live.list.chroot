@@ -33,3 +33,5 @@ xclip
 util-linux
 
 cifs-utils
+
+conky-std

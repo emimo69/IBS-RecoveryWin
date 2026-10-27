@@ -1,11 +1,18 @@
 #!/bin/sh
 set -eu
-curl --fail --location --retry 3 --proto '=https' --proto-redir '=https' \
- https://download.teamviewer.com/download/linux/teamviewer-host_amd64.deb -o /tmp/teamviewer-host.deb
-[ "$(dpkg-deb -f /tmp/teamviewer-host.deb Architecture)" = amd64 ]
-[ "$(dpkg-deb -f /tmp/teamviewer-host.deb Package)" = teamviewer-host ]
+# Same package version and daemon binary as the working NAS Rescue PXE ISO.
+package=/tmp/teamviewer-host.deb
+expected=31a633b8f3ebf180849f56ae0edd2a9c4abc757472668455dc73e08c3b975b4f
+printf '%s  %s\n' "$expected" "$package" | sha256sum --check
+[ "$(dpkg-deb -f "$package" Architecture)" = amd64 ]
+[ "$(dpkg-deb -f "$package" Package)" = teamviewer-host ]
+[ "$(dpkg-deb -f "$package" Version)" = 15.82.6 ]
 apt-get update
-apt-get install -y /tmp/teamviewer-host.deb
-rm /tmp/teamviewer-host.deb
+apt-get install -y --allow-downgrades "$package"
+apt-mark hold teamviewer-host
+rm "$package"
+# As in Rescue: generate a fresh identity only when the live boots.
+find /etc/teamviewer -maxdepth 1 -type f -name global.conf -delete
+if [ -d /var/log/teamviewer15 ]; then find /var/log/teamviewer15 -type f -delete; fi
 systemctl enable ssh.service NetworkManager.service teamviewerd.service ibs-remote.service
 rm -f /etc/ssh/ssh_host_*key /etc/ssh/ssh_host_*key.pub

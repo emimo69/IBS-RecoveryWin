@@ -12,7 +12,7 @@ SOURCE = PROJECT / 'config/includes.chroot/usr/local/sbin/ibs-remote'
 
 class RemoteTests(unittest.TestCase):
     def run_case(self, *, info='TeamViewer ID: 123456789', info_rc=0,
-                 password_rc=0, password_output="ok", openssl_rc=0, ip=True, success=False, eula=True):
+                 password_rc=0, password_output="ok", openssl_rc=0, ip=True, success=False, eula=True, info_after=0, desktop=True):
         with tempfile.TemporaryDirectory(prefix='.remote-test-', dir=PROJECT) as tmp:
             root = Path(tmp)
             bindir = root / 'bin'
@@ -21,21 +21,27 @@ class RemoteTests(unittest.TestCase):
             conf.mkdir(parents=True)
             (conf / 'global.conf').write_text('[int32] EulaAccepted = ' + ('1' if eula else '0') + '\n')
             source = SOURCE.read_text().replace('/mnt', str(root / 'output')).replace('/etc/teamviewer', str(conf))
+            source = source.replace('/proc/$XPID/environ', str(root / 'session-environ')).replace('/run/ibs-teamviewer-gui.log', str(root / 'gui.log'))
+            (root / 'session-environ').write_bytes(b'DISPLAY=:99\0XAUTHORITY=/test/auth\0DBUS_SESSION_BUS_ADDRESS=unix:path=/test/bus\0XDG_RUNTIME_DIR=/run/user/1000\0')
             self.assertNotIn('/mnt/teamviewer.txt', source)
             self.assertNotIn('/etc/teamviewer', source)
             script = root / 'remote'
             script.write_text(source)
             commands = {
                 'teamviewer': '''case "$1" in
-passwd) printf '%s' "$2" > "$TEST_ROOT/password-set"; printf '%s\\n' "$MOCK_PASSWORD_OUTPUT"; exit "$MOCK_PASSWORD_RC" ;;
-info) printf '%s\\n' "$MOCK_INFO"; exit "$MOCK_INFO_RC" ;;
+license) printf '[int32] EulaAccepted = 1\\n' > "$TEST_ROOT/tvconf/global.conf"; exit 0 ;;
+passwd) [ -f "$TEST_ROOT/gui-started" ] && [ -f "$TEST_ROOT/info-seen" ] || exit 98; printf '%s' "$2" > "$TEST_ROOT/password-set"; printf '%s\\n' "$MOCK_PASSWORD_OUTPUT"; exit "$MOCK_PASSWORD_RC" ;;
+info) [ -f "$TEST_ROOT/gui-started" ] || exit 98; touch "$TEST_ROOT/info-seen"; count=0; [ ! -f "$TEST_ROOT/info-count" ] || count=$(cat "$TEST_ROOT/info-count"); count=$((count + 1)); printf '%s' "$count" > "$TEST_ROOT/info-count"; if [ "$count" -le "$MOCK_INFO_AFTER" ]; then exit 0; fi; printf '%s\\n' "$MOCK_INFO"; exit "$MOCK_INFO_RC" ;;
 *) exit 99 ;;
 esac''',
-                'openssl': 'if [ "$MOCK_OPENSSL_RC" != 0 ]; then exit "$MOCK_OPENSSL_RC"; fi\nprintf test-session-password',
+                'openssl': 'if [ "$MOCK_OPENSSL_RC" != 0 ]; then exit "$MOCK_OPENSSL_RC"; fi\nprintf Ab12Cd34',
                 'ip': 'if [ "$MOCK_IP" = yes ]; then printf "2: eth0 inet 192.0.2.10/24 scope global eth0\\n"; fi',
                 'sleep': ':',
+                'pgrep': 'if [ "$MOCK_DESKTOP" = yes ]; then printf 123; fi',
+                'pkill': '[ "$1 $2" = "-u admin" ] || exit 99\nprintf stopped > "$TEST_ROOT/gui-stopped"',
+                'runuser': '[ -f "$TEST_ROOT/gui-stopped" ] || exit 99\nprintf started > "$TEST_ROOT/gui-started"',
                 'systemctl': '''printf '%s\\n' "$1" >> "$TEST_ROOT/service-events"
-if [ "$1" = start ]; then
+if [ "$1" = restart ]; then
     grep -Fqx '[int32] EulaAccepted = 1' "$TEST_ROOT/tvconf/global.conf"
 fi''',
                 'chown': '[ "$1" = root:admin ] || exit 99\nprintf root:admin > "$TEST_ROOT/owner-request"',
@@ -45,50 +51,32 @@ fi''',
                 target.write_text('#!/bin/sh\nset -eu\n' + body + '\n')
                 target.chmod(0o755)
             env = dict(os.environ, PATH=str(bindir) + ':' + os.environ['PATH'],
-                       TEST_ROOT=tmp, MOCK_INFO=info, MOCK_INFO_RC=str(info_rc),
+                       TEST_ROOT=tmp, MOCK_INFO=info, MOCK_INFO_RC=str(info_rc), MOCK_INFO_AFTER=str(info_after),
                        MOCK_PASSWORD_RC=str(password_rc), MOCK_PASSWORD_OUTPUT=password_output, MOCK_OPENSSL_RC=str(openssl_rc),
-                       MOCK_IP='yes' if ip else 'no')
-            result = subprocess.run(['sh', str(script)], env=env, capture_output=True, timeout=30)
+                       MOCK_IP='yes' if ip else 'no', MOCK_DESKTOP='yes' if desktop else 'no')
+            result = subprocess.run(['bash', str(script)], env=env, capture_output=True, timeout=30)
             txt = root / 'output/teamviewer.txt'
             self.assertTrue(txt.is_file())
             self.assertEqual(txt.stat().st_mode & 0o777, 0o640)
             self.assertEqual((root / 'owner-request').read_text(), 'root:admin')
             self.assertFalse(txt.with_suffix('.txt.tmp').exists())
             content = txt.read_text()
-            self.assertNotIn(b'test-session-password', result.stdout + result.stderr)
+            self.assertNotIn(b'Ab12Cd34', result.stdout + result.stderr)
             if success:
                 self.assertEqual(result.returncode, 0)
-                self.assertEqual((root / 'service-events').read_text().splitlines()[:2], ['stop', 'start'])
+                self.assertEqual((root / 'service-events').read_text().splitlines()[:2], ['restart', 'is-active'])
                 self.assertIn('TeamViewer ID: 123456789\n', content)
                 self.assertIn('IP locale: 192.0.2.10', content)
                 self.assertIn('Password: ' + (root / 'password-set').read_text(), content)
             else:
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn('Password:', content)
-                self.assertNotIn('test-session-password', content)
+                self.assertNotIn('Ab12Cd34', content)
                 self.assertNotIn('inizializzazione in corso', content)
             return content
 
-    def test_ui_waits_for_services(self):
-        launcher = PROJECT / 'config/includes.chroot/usr/local/bin/ibs-teamviewer-ui'
-        with tempfile.TemporaryDirectory(prefix='.remote-test-', dir=PROJECT) as tmp:
-            root = Path(tmp)
-            commands = {
-                'systemctl': 'if [ "$1" = is-failed ]; then exit 1; fi\n[ -f "$TEST_ROOT/ready" ]',
-                'sleep': 'touch "$TEST_ROOT/ready"',
-                'id': 'printf 1000',
-                'pkill': '[ "$1 $2 $3 $4" = "-u 1000 -x TeamViewer" ] || exit 99\nprintf stopped > "$TEST_ROOT/gui-stopped"',
-                'teamviewer': '[ -f "$TEST_ROOT/ready" ] && [ -f "$TEST_ROOT/gui-stopped" ] || exit 99\nprintf launched',
-                'mousepad': 'exit 98',
-            }
-            for name, body in commands.items():
-                target = root / name
-                target.write_text('#!/bin/sh\nset -eu\n' + body + '\n')
-                target.chmod(0o755)
-            env = dict(os.environ, PATH=tmp + ':' + os.environ['PATH'], TEST_ROOT=tmp)
-            result = subprocess.run(['sh', str(launcher)], env=env, capture_output=True, timeout=10)
-            self.assertEqual(result.returncode, 0)
-            self.assertEqual(result.stdout, b'launched')
+    def test_no_desktop_no_credentials(self):
+        self.run_case(desktop=False)
 
     def test_vendor_stop_does_not_propagate_to_ibs(self):
         unit = configparser.ConfigParser(interpolation=None)
@@ -105,6 +93,9 @@ fi''',
 
     def test_eula_before_daemon_start(self):
         self.run_case(eula=False, success=True)
+
+    def test_id_arrives_after_sixty_polls(self):
+        self.run_case(info_after=65, success=True)
 
     def test_ansi_spaces_cr(self):
         self.run_case(info='version\n  \x1b[1;32mTeamViewer ID:\x1b[0m 123 456 789\r\nstatus', success=True)

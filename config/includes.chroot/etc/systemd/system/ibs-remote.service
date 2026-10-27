@@ -8,7 +8,9 @@ After=live-config.service network-online.target teamviewerd.service
 Type=oneshot
 ExecStart=/usr/local/sbin/ibs-remote
 RemainAfterExit=yes
-TimeoutStartSec=300
+TimeoutStartSec=1200
+Restart=on-failure
+RestartSec=10
 UMask=0077
 
 [Install]

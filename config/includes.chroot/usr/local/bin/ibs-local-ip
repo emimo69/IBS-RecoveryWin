@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+addresses=$(ip -o -4 addr show up scope global | awk '{split($4,a,"/"); print $2 ": " a[1]}')
+if [ -z "$addresses" ]; then
+    addresses=$(ip -o -6 addr show up scope global | awk '{split($4,a,"/"); print $2 ": " a[1]}')
+fi
+printf '%s\n' "${addresses:-Rete non disponibile}"

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Indirizzo IP locale
+Exec=conky --config=/etc/conky/ibs-ip.conf --pause=3
+OnlyShowIn=XFCE;
+Terminal=false

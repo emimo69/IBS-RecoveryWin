@@ -29,12 +29,20 @@ static int set_clip(const char *text, int length) {
  if(memchr(text,0,length)) return 0;
  int n=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text,length,NULL,0);
  if(length && !n) return 0;
- HGLOBAL data=GlobalAlloc(GMEM_MOVEABLE,(n+1)*sizeof(wchar_t));
+ HGLOBAL data=GlobalAlloc(GMEM_MOVEABLE,(2*n+1)*sizeof(wchar_t));
  if(!data) return 0;
  wchar_t *out=GlobalLock(data);
  if(!out) { GlobalFree(data);return 0; }
  if(n) MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text,length,out,n);
- out[n]=0;GlobalUnlock(data);
+ /* Conhost drops LF-only separators on paste. Windows needs CRLF. */
+ int extra=0;
+ for(int i=0;i<n;i++) if(out[i]==L'\n' && (i==0 || out[i-1]!=L'\r')) extra++;
+ out[n+extra]=0;
+ for(int i=n-1,j=n+extra-1;i>=0;i--) {
+  wchar_t value=out[i];int add=value==L'\n' && (i==0 || out[i-1]!=L'\r');
+  out[j--]=value;if(add)out[j--]=L'\r';
+ }
+ GlobalUnlock(data);
  if(!OpenClipboard(owner)) {GlobalFree(data);return 0;}
  int ok=EmptyClipboard() && SetClipboardData(CF_UNICODETEXT,data)!=NULL;
  CloseClipboard(); if(!ok) GlobalFree(data);
@@ -56,6 +64,16 @@ static char *get_clip(DWORD *size) {
   GlobalUnlock(data);
  }
  CloseClipboard();return result;
+}
+static int equal_lines(const char *a,DWORD an,const char *b,DWORD bn) {
+ DWORD i=0,j=0;
+ while(i<an || j<bn) {
+  if(i+1<an && a[i]=='\r' && a[i+1]=='\n')i++;
+  if(j+1<bn && b[j]=='\r' && b[j+1]=='\n')j++;
+  if(i==an || j==bn)return i==an && j==bn;
+  if(a[i++]!=b[j++])return 0;
+ }
+ return 1;
 }
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE previous,LPWSTR args,int show) {
  (void)instance;(void)previous;(void)show;
@@ -101,7 +119,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE previous,LPWSTR args,int show) 
    initialized=1;
    if(test) {
     DWORD actual_size=0;char *actual=get_clip(&actual_size);
-    if(!actual||actual_size!=length||memcmp(actual,buffer+8,length)) goto done;
+    if(!actual||!equal_lines(actual,actual_size,(char*)buffer+8,length)) goto done;
     free(actual);
     const char *answer="WinRE -> Debian: caff\xc3\xa8, \xe2\x82\xac, \xe6\x96\x87\xe5\xad\x97\r\nseconda riga";
     if(!set_clip(answer,(int)strlen(answer))) goto done;

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -eu
 export LC_ALL=C
 info=/mnt/teamviewer.txt
@@ -24,34 +24,88 @@ trap 'error_message="TeamViewer: preparazione interrotta; riavviare il servizio.
 install -d -m 0755 /mnt
 # Clear previous session credentials before any operation that can fail.
 publish 'TeamViewer: inizializzazione in corso, credenziali non ancora disponibili.'
-password=$(openssl rand -hex 8)
-# TeamViewer requires acceptance of its license before unattended use.
-# Keep any existing vendor settings intact.
-systemctl stop teamviewerd.service
-install -d -m 0755 /etc/teamviewer
-conf=/etc/teamviewer/global.conf
-touch "$conf"
-if ! grep -q '^\[int32\] EulaAccepted = 1$' "$conf"; then
-    sed -i '/^\[int32\] EulaAccepted = /d' "$conf"
-    printf '\n[int32] EulaAccepted = 1\n' >> "$conf"
-fi
-systemctl start teamviewerd.service
-ready=false
-for attempt in $(seq 1 60); do
-    if password_result=$(teamviewer passwd "$password" 2>&1) &&
-       printf '%s\n' "$password_result" | grep -qx 'ok'; then
-        ready=true
-        break
-    fi
-    sleep 3
+# Same license, GUI, ID and final-password sequence as NAS Rescue PXE 0.6.6.
+teamviewer license accept >/dev/null 2>&1 || true
+systemctl restart teamviewerd.service
+# Attende daemon TeamViewer
+for I in $(seq 1 30)
+do
+    systemctl is-active --quiet teamviewerd.service && break
+    sleep 2
 done
-if [ "$ready" != true ]; then
-    error_message='TeamViewer: configurazione password fallita. Consultare journalctl -u ibs-remote.'
+
+# ----------------------------------------------------------
+# Attende la sessione grafica XFCE di admin
+# ----------------------------------------------------------
+
+XPID=""
+
+for I in $(seq 1 120)
+do
+    XPID=$(pgrep -u admin -n xfce4-session 2>/dev/null || true)
+
+    [ -n "$XPID" ] && break
+
+    sleep 2
+done
+
+# ----------------------------------------------------------
+# Riaggancia la GUI TeamViewer alla sessione X11
+# ----------------------------------------------------------
+
+if [ -n "$XPID" ]
+then
+    DISPLAY_VAR=$(
+        tr '\0' '\n' < /proc/$XPID/environ 2>/dev/null |
+        sed -n 's/^DISPLAY=//p' |
+        head -1
+    )
+
+    XAUTH_VAR=$(
+        tr '\0' '\n' < /proc/$XPID/environ 2>/dev/null |
+        sed -n 's/^XAUTHORITY=//p' |
+        head -1
+    )
+
+    DBUS_VAR=$(
+        tr '\0' '\n' < /proc/$XPID/environ 2>/dev/null |
+        sed -n 's/^DBUS_SESSION_BUS_ADDRESS=//p' |
+        head -1
+    )
+
+    XDG_RUNTIME=$(
+        tr '\0' '\n' < /proc/$XPID/environ 2>/dev/null |
+        sed -n 's/^XDG_RUNTIME_DIR=//p' |
+        head -1
+    )
+
+    pkill -u admin -f '/opt/teamviewer/tv_bin/TeamViewer' \
+        >/dev/null 2>&1 || true
+
+    sleep 2
+
+    runuser -u admin -- env \
+        HOME=/home/admin \
+        USER=admin \
+        LOGNAME=admin \
+        DISPLAY="${DISPLAY_VAR:-:0}" \
+        XAUTHORITY="${XAUTH_VAR:-/home/admin/.Xauthority}" \
+        DBUS_SESSION_BUS_ADDRESS="${DBUS_VAR:-}" \
+        XDG_RUNTIME_DIR="${XDG_RUNTIME:-/run/user/1000}" \
+        /opt/teamviewer/tv_bin/TeamViewer \
+        >/run/ibs-teamviewer-gui.log 2>&1 &
+
+    sleep 5
+fi
+
+# ----------------------------------------------------------
+
+if [ -z "$XPID" ]; then
+    error_message='TeamViewer: sessione XFCE admin non disponibile.'
     exit 1
 fi
-for attempt in $(seq 1 60); do
-    id=''
-    # Capture the command exit status BEFORE parsing; safe with set -e.
+id=''
+for attempt in $(seq 1 120); do
     if output=$(teamviewer info 2>/dev/null); then
         id=$(printf '%s\n' "$output" | awk '
             BEGIN { esc = sprintf("%c", 27) }
@@ -72,22 +126,41 @@ for attempt in $(seq 1 60); do
             END { if (count == 1 && value != "") print value }
         ')
     fi
-    if [ -n "$id" ] && [ "$id" != 0 ]; then
-        ips=$(ip -o -4 addr show scope global | awk '{print $4}' | cut -d/ -f1 | paste -sd ',' -)
-        if [ -z "$ips" ]; then
-            ips=$(ip -o -6 addr show scope global | awk '{print $4}' | cut -d/ -f1 | paste -sd ',' -)
+
+    [ -z "$id" ] || break
+    sleep 5
+done
+if [ -z "$id" ]; then
+    error_message='TeamViewer: ID non disponibile; controllare la connessione Internet.'
+    exit 1
+fi
+# Set the password LAST, as in the working Rescue ISO.
+ready=false
+for attempt in $(seq 1 30); do
+    candidate=$(openssl rand -base64 6)
+    candidate=$(printf '%s' "$candidate" | tr '+/' 'AZ')
+    if [[ "$candidate" =~ [A-Z] ]] && [[ "$candidate" =~ [a-z] ]] && [[ "$candidate" =~ [0-9] ]]; then
+        if password_result=$(teamviewer passwd "$candidate" 2>&1) &&
+           printf '%s\n' "$password_result" | grep -qx 'ok'; then
+            password=$candidate
+            ready=true
+            break
         fi
-        if [ -z "$ips" ]; then
-            publish 'TeamViewer: indirizzo IP locale non disponibile; credenziali non ancora pronte.'
-            sleep 1
-            continue
-        fi
-        publish "TeamViewer ID: $id
+    fi
+done
+if [ "$ready" != true ]; then
+    error_message='TeamViewer: configurazione password fallita. Consultare journalctl -u ibs-remote.'
+    exit 1
+fi
+ips=$(ip -o -4 addr show scope global | awk '{print $4}' | cut -d/ -f1 | paste -sd ',' -)
+if [ -z "$ips" ]; then
+    ips=$(ip -o -6 addr show scope global | awk '{print $4}' | cut -d/ -f1 | paste -sd ',' -)
+fi
+if [ -z "$ips" ]; then
+    error_message='TeamViewer: indirizzo IP locale non disponibile.'
+    exit 1
+fi
+publish "TeamViewer ID: $id
 Password: $password
 IP locale: $ips"
-        exit 0
-    fi
-    sleep 1
-done
-error_message='TeamViewer: ID o indirizzo IP locale non disponibile. Controllare rete e journalctl -u ibs-remote; riavviare il servizio per riprovare.'
-exit 1
+exit 0
