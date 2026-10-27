@@ -60,12 +60,16 @@ class DiskTests(unittest.TestCase):
         fstated.return_value.st_rdev=200
         with self.assertRaises(ValueError):open_disks(['/dev/testdisk'])
         self.assertEqual({c.args[0] for c in closed.call_args_list},{33,34})
-    def test_fdset_rw_and_sector_geometry(self):
+    @patch('ibs2.vm.os.fstat')
+    def test_fdset_rw_and_sector_geometry(self, stated):
+        stated.return_value.st_mode = 0o060660
         args=command(Path('/run/user/1000/test'),[(33,{'_probe_fd':34,'log-sec':4096,'phy-sec':4096})],acceleration='tcg')
         joined=' '.join(args)
         self.assertIn('fd=33,set=1',joined)
         self.assertIn('fd=34,set=1',joined)
         self.assertIn('file=/dev/fdset/1,format=raw',joined)
+        self.assertIn('file.driver=host_device',joined)
+        self.assertIn('nvme,drive=physical0', joined)
         self.assertIn('logical_block_size=4096,physical_block_size=4096',joined)
         self.assertIn('guestfwd=tcp:10.0.2.100:17625-chardev:clip',joined)
         self.assertNotIn('hostfwd',joined)

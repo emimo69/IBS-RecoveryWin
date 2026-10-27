@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import threading
@@ -29,10 +30,20 @@ def command(runtime, disks, *, iso=ISO, display='gtk', memory=2048, acceleration
         physical = int(disk.get('phy-sec') or logical)
         if logical not in (512, 4096) or physical not in (512, 4096):
             raise ValueError('Dimensione settore disco non supportata')
+        mode = os.fstat(fd).st_mode
+        if stat.S_ISBLK(mode):
+            driver = 'host_device'
+        elif stat.S_ISREG(mode):
+            driver = 'file'
+        else:
+            raise ValueError('Il descrittore non è un disco a blocchi o un file di test')
         args += ['-add-fd', f'fd={fd},set={i + 1}',
                  '-add-fd', f'fd={disk["_probe_fd"]},set={i + 1}', '-drive',
-                 f'file=/dev/fdset/{i + 1},format=raw,if=none,id=physical{i},cache=none,file.locking=off',
-                 '-device', f'ide-hd,drive=physical{i},bus=ide.{i + 1},serial={serial},logical_block_size={logical},physical_block_size={physical}']
+                 f'file=/dev/fdset/{i + 1},format=raw,if=none,id=physical{i},cache=none,file.driver={driver},file.locking=off',
+                 '-device',
+                 (f'nvme,drive=physical{i},serial={serial},logical_block_size={logical},physical_block_size={physical}'
+                  if logical == 4096 else
+                  f'ide-hd,drive=physical{i},bus=ide.{i + 1},serial={serial},logical_block_size={logical},physical_block_size={physical}')]
     return args
 
 def launch(disks):

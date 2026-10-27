@@ -17,3 +17,11 @@ Correzioni: scrivere EulaAccepted con daemon fermo; richiedere la risposta esatt
 Applicato il servizio corretto alla VM della live: ibs-remote e teamviewerd attivi, EulaAccepted persistente, ID uguale nel file e nella GUI. La GUI riaperta mostra «Ready to connect (secure connection)», senza procedura di assegnazione account. Questo non prova una connessione remota autenticata: la password deve essere verificata da un secondo client.
 
 11 test remoti superati, compresi rifiuto password con codice zero, configurazione licenza prima dell’avvio e attesa della GUI. ISO corretta generata dal chroot originale con i tre file aggiornati: IBS-RecoveryWin-2.0-fix-teamviewer-amd64.hybrid.iso. I tre file sono stati riletti dal filesystem SquashFS e confrontati byte per byte con i sorgenti. Catalogo BIOS/UEFI verificato. Originale preservata; la prova grafica riguarda la live originale con servizio aggiornato, non un nuovo avvio completo della ISO corretta.
+
+## Correzione dischi QEMU
+
+Errore segnalato dall’utente: il driver `file` richiedeva un file regolare per `/dev/fdset/1`. Ora il backend è scelto con fstat: `host_device` per descrittori a blocchi, `file` per i file di test. Non cambia l’apertura esclusiva e non vengono riaperti percorsi di dischi dopo il calo dei privilegi.
+
+Test QEMU reale eseguito come uid 1000 con fdset: lettura/scrittura e verifica di 4096 byte nel file sottostante superate su file regolare, loop con settori 512 e loop con settori 4096. Tutti i loop sono stati creati appositamente da file temporanei e rimossi a fine test; nessun disco fisico usato.
+
+Il test ha rilevato anche che IDE QEMU rifiuta settori logici 4096. Questi usano ora NVMe emulato; stornvme.sys è presente nella WIM. Il test prova l’apertura e la scrittura dal backend QEMU, non il riconoscimento 4Kn in WinRE né la selezione grafica nella live. La ISO con entrambe le correzioni è in ricostruzione.
