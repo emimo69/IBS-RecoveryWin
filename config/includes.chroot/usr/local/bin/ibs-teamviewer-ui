@@ -4,6 +4,9 @@ set -eu
 for attempt in $(seq 1 160); do
     if systemctl is-active --quiet ibs-remote.service &&
        systemctl is-active --quiet teamviewerd.service; then
+        # Rescue 0.6.6 also reattaches the GUI after any premature D-Bus launch.
+        pkill -u "$(id -u)" -x TeamViewer 2>/dev/null || true
+        sleep 2
         exec teamviewer
     fi
     if systemctl is-failed --quiet ibs-remote.service; then

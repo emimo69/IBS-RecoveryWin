@@ -76,7 +76,9 @@ fi''',
             commands = {
                 'systemctl': 'if [ "$1" = is-failed ]; then exit 1; fi\n[ -f "$TEST_ROOT/ready" ]',
                 'sleep': 'touch "$TEST_ROOT/ready"',
-                'teamviewer': '[ -f "$TEST_ROOT/ready" ] || exit 99\nprintf launched',
+                'id': 'printf 1000',
+                'pkill': '[ "$1 $2 $3 $4" = "-u 1000 -x TeamViewer" ] || exit 99\nprintf stopped > "$TEST_ROOT/gui-stopped"',
+                'teamviewer': '[ -f "$TEST_ROOT/ready" ] && [ -f "$TEST_ROOT/gui-stopped" ] || exit 99\nprintf launched',
                 'mousepad': 'exit 98',
             }
             for name, body in commands.items():

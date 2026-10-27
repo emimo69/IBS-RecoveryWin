@@ -35,3 +35,11 @@ Il componente Windows è stato avviato dal disco ausiliario della VM di test, no
 ## Public sul desktop
 
 Confermato accesso SMB ospite con smbclient e montaggio reale SMB3 in sola lettura su directory temporanea del progetto; smontato dopo verifica. Configurate unità mnt-Public.mount e mnt-Public.automount, validate con systemd-analyze verify. Collegamento Desktop/Public verso /mnt/Public. Installato cifs-utils nel chroot e aggiunto alla lista pacchetti; abilitato automount. Nessuna credenziale NAS incorporata. La presenza e il funzionamento di Public nella nuova live restano da verificare dopo la compilazione.
+
+## Confronto con IBS Rescue e prova della live con Public
+
+Consultato su richiesta dell’utente IBS-NETBOOT, commit 4ead382, script ibs-rescue/usb/config/includes.chroot/usr/local/sbin/ibs-teamviewer-auto e variante PXE. La Rescue chiude la GUI prematura e la riaggancia alla sessione XFCE; controlla esplicitamente la risposta ok alla password.
+
+La prima ISO con Public è stata avviata integralmente in QEMU: admin/admin, credenziali e licenza presenti, automount Public abilitato. L’elenco della directory ha attivato un montaggio CIFS reale di //192.168.20.123/Public su /mnt/Public, e il collegamento è visibile sul desktop. La schermata ha però rivelato una GUI TeamViewer prematura attivata tramite D-Bus.
+
+Ripreso dalla Rescue il riaggancio della GUI: il launcher della 2.0, dopo il servizio pronto, chiude soltanto il processo TeamViewer del proprio utente e lo riapre con l’ambiente della sessione XFCE. La correzione applicata alla live ha eliminato l’errore: schermata Ready to connect e ID uguale al TXT. Non è stata provata una connessione remota autenticata. La ISO viene ricostruita con questo launcher aggiornato.
