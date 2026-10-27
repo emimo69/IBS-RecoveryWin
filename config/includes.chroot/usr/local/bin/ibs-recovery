@@ -83,9 +83,7 @@ def run_vm():
         confirmation=''
         if direct:
             dialog('--warning','--title=Scrittura reale','--text=ATTENZIONE: Windows potrà modificare realmente il disco '+disk['name']+'. Il disco deve essere libero e non montato. Questa modalità non è un test protetto.')
-            phrase='SCRIVI '+disk['name']+' '+token[:8]
-            confirmation=dialog('--entry','--title=Conferma scrittura','--text=Per autorizzare la scrittura digita esattamente:\n'+phrase)
-            if confirmation!=phrase:raise RuntimeError('Conferma non corrispondente: nessuna VM avviata.')
+            # La selezione esplicita della modalità diretta e l'avviso bastano: nessuna frase da digitare.
         request.update(kind='disk',token=token,direct=direct,confirmation=confirmation)
     result=backend('launch',json.dumps(request))
     dialog('--info','--title=VM avviata','--text=VM avviata in una finestra QEMU.\nChiudila per terminare la sessione.\n'+
