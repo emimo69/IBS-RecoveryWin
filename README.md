@@ -7,6 +7,8 @@ TeamViewer **Host 15.82.6** si avvia al boot. Il servizio genera una password pe
 
 Mousepad e nano modificano file TXT. Nel terminale XFCE: copia `Ctrl+Maiusc+C`, incolla `Ctrl+Maiusc+V`, oppure menu del tasto destro. Clipman gestisce gli appunti della sessione.
 
+Firefox ESR è incluso come browser web, con interfaccia italiana.
+
 ## WinRE e dischi
 
 `Avvia WinRE` apre la selezione dei dischi fisici. Quelli selezionati saranno accessibili **in lettura e scrittura**, premendo Avvia WinRE nella finestra di selezione. L’elenco mostra percorso, capacità, modello e seriale. Nessuna selezione avvia WinRE senza dischi fisici.

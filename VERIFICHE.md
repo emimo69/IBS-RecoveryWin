@@ -12,6 +12,8 @@ Aggiornato il 27 ottobre 2026. Le verifiche sulla live 2.0 candidata sono ancora
 
 ## In attesa del collaudo della candidata live
 
+- Firefox ESR e il pacchetto di lingua italiana sono stati aggiunti alla lista della prossima build. Da verificare il lancio grafico e la navigazione reale.
+- Sul candidato attuale, il primo tentativo SSH è stato fatto mentre `live-config.service` risultava ancora in avvio e la connessione è stata resettata. La password `admin/admin` era stata verificata sulla ISO precedente; ripetere il login sulla candidata quando il bootstrap è finito.
 - TeamViewer Host è fissato alla versione 15.82.6 usata dalla Rescue funzionante. Il servizio segue l’ordine Rescue e pubblica ID, password e IP in `/mnt/teamviewer.txt`; deve ancora essere verificato all’avvio della candidata live. Non è stato provato un accesso remoto autenticato da un secondo client.
 - L’overlay Conky dell’IP è configurato in alto a destra sotto le icone di servizio; verificarne posizione e aggiornamento nella candidata live.
 - Public è configurata come icona sul desktop e mount SMB3 su richiesta. Il montaggio reale e l’icona erano stati verificati in una live precedente; ripetere nella candidata.
