@@ -1,91 +1,35 @@
-# IBS-RecoveryWin 1.0
+# IBS-RecoveryWin 2.0
 
-Prima configurazione live-build: Debian Trixie amd64, XFCE in italiano,
-tastiera italiana e fuso Europe/Rome. ISO TEST-1.0 R3 compilata dopo recovery Git e provata;
-vedere [risultati R3](docs/TEST-1.0-R3-RESULTS.md),
-[risultati R2](docs/TEST-1.0-R2-RESULTS.md) e
-[primo test](docs/TEST-1.0-RESULTS.md).
+Live Debian Trixie amd64 con XFCE italiano, login automatico e SSH attivo: utente `admin`, password `admin`.
+Progetto separato dalla 1.0. I requisiti approvati sono in REQUISITI.md.
 
-- Utente live `admin`, password `admin`, gruppo sudo e login automatico LightDM.
-- SSH con password, accesso consentito solo ad admin; chiavi host generate al boot.
-- NetworkManager e TeamViewer avviati automaticamente.
-- Conky mostra sul desktop ID e password TeamViewer, generata a ogni avvio.
-  Il file riporta anche gli indirizzi IP locali assegnati. Le credenziali sono in `/mnt/teamviewer.txt`, leggibili solo da root/admin.
-  Errori e ID non disponibile sono mostrati esplicitamente; per riprovare:
-  `sudo systemctl restart ibs-remote`.
-- R3 aggiunge IP dinamico, selezione ISO NAS/Ventoy e avvio QEMU separato
-  ISO/OS: vedere [funzioni e limiti](docs/RECOVERY-R3.md). Nessuna creazione USB.
+TeamViewer **Host** si avvia al boot. Il servizio genera una password per ogni sessione live e salva ID, password e IP in `/mnt/teamviewer.txt` (root:admin, 0640). Il collegamento sul desktop apre il file con Mousepad. Il file risiede nella live e non viene salvato sul NAS. La connessione TeamViewer richiede rete; in caso di errore viene pubblicato lo stato, senza credenziali obsolete.
 
-## Preparazione senza compilazione
+Mousepad e nano modificano file TXT. Nel terminale XFCE: copia `Ctrl+Maiusc+C`, incolla `Ctrl+Maiusc+V`, oppure menu del tasto destro. Clipman gestisce gli appunti della sessione.
 
-Dalla directory `/opt/ibs-recoverywin-1.0`, eseguire `./auto/config`.
-Questo genera soltanto la configurazione di live-build; non esegue build.
-La compilazione richiede una successiva autorizzazione esplicita.
+## WinRE e dischi
 
-Il futuro hook chroot scarica il pacchetto amd64 dal sito ufficiale TeamViewer
-tramite HTTPS e installa le dipendenze. Il pacchetto segue la versione corrente:
-la build non è riproducibile bit per bit e richiede rete. Il servizio imposta
-l'accettazione della licenza TeamViewer per consentire l'avvio automatico.
-L'utilizzo resta soggetto alla licenza del produttore.
+`Avvia WinRE` apre la selezione dei dischi fisici. Quelli selezionati saranno accessibili **in lettura e scrittura**, premendo Avvia WinRE nella finestra di selezione. L’elenco mostra percorso, capacità, modello e seriale. Nessuna selezione avvia WinRE senza dischi fisici.
+Sono esclusi dischi montati, swap, dischi con dipendenze RAID/LVM e supporto della live; non vengono smontati automaticamente. La presa esclusiva del kernel impedisce il montaggio dei dischi assegnati durante la sessione QEMU. Le dimensioni dei settori 512/4096 sono preservate. Massimo cinque dischi su controller SATA emulato, senza driver storage aggiuntivi in WinRE. I privilegi root servono soltanto all’apertura controllata dei dischi; QEMU gira come admin.
+
+WinRE parte su richiesta dal desktop, con UEFI, 2 CPU, 2 GB RAM e KVM quando accessibile (TCG altrimenti). La ISO QNAP viene inclusa nella live: non è necessario collegarsi al NAS durante l’uso. Il sorgente NAS è stato copiato e verificato SHA256, senza modificarlo.
+
+Un componente Windows nativo condivide il testo Unicode degli appunti tra Debian e WinRE attraverso il canale privato QEMU; non apre porte sulla rete fisica e non richiede driver SPICE. Non trasferisce file o immagini. L’avvio WinRE integrato inizializza WinPE, attiva il componente, apre il prompt e mantiene l’ambiente grafico di ripristino. Nel prompt Windows si usano Ctrl+C/Ctrl+V con le scorciatoie abilitate; le prove della ISO finale devono confermare anche l’interazione grafica.
+
+## Preparazione e compilazione
+
+Le ISO e i binari generati non sono su GitHub. Sorgente WinRE: `/mnt/ibs-iso/ISO/IBS-WinRE.iso` (SHA256 in assets/WinRE.sha256), da copiare in `config/includes.chroot/opt/ibs/iso/IBS-WinRE.iso`.
+Dipendenze di preparazione: live-build, xorriso, wimtools e gcc-mingw-w64-x86-64-win32. I test richiedono QEMU, OVMF, xvfb, xclip e xauth.
+
+`python3 scripts/prepare-winre.py` compila il componente e prepara/verifica solo la WIM, senza produrre ISO. La WIM preparata rimane in `.build`.
+**Solo dopo autorizzazione esplicita alla compilazione:** `sudo scripts/build-iso.sh --authorized`. Lo script integra la WIM nella copia locale WinRE preservando l’avvio BIOS/UEFI, quindi esegue live-build. Il hook blocca una build con WinRE non integrata. Le operazioni si eseguono dalla radice della 2.0. Non usare la directory 1.0.
 
 ## Verifiche
 
-Eseguire `./scripts/verify-config.sh` per controllare sintassi e impostazioni.
-Queste verifiche non avviano servizi e non modificano dischi fisici.
-Prima di dichiarare la live operativa occorrono, dopo autorizzazione alla build,
-avvio reale, verifica lingua/login, accesso SSH da un secondo computer,
-connessione TeamViewer con le credenziali visualizzate e controllo al riavvio.
-Le credenziali admin/admin sono quelle richieste per questa prima fase.
+`python3 scripts/test-remote.py`: parsing ID, errori, assenza di credenziali obsolete e permessi del file con comandi simulati; non prova una connessione TeamViewer reale.
+`python3 scripts/test-runtime.py`: protocollo appunti, inventario reale in sola lettura, esclusioni dischi, gestione race e argomenti QEMU.
+`python3 scripts/test-clipboard-x11.py`: scambio testo reale con gli appunti X11 su display virtuale.
+`python3 scripts/test-winre-boot.py start`: avvia la ISO WinRE esistente con soli dischi di test basati su file, senza compilare ISO. Il comando `stop` termina la VM. Comandi `screen`, `key` e `type` consentono di ispezionare il guest (layout italiano).
+`python3 scripts/test-clipboard-winre.py`: prova gli appunti Windows/X11 dalla VM già avviata al prompt e con rete WinPE inizializzata.
 
-Riferimenti: [Debian Live Manual](https://live-team.pages.debian.net/live-manual/html/live-manual.en.html)
-e [TeamViewer CLI](https://www.teamviewer.com/it/global/support/knowledge-base/teamviewer-remote/download-and-installation/linux/install-teamviewer-classic-on-linux-without-graphical-user-interface/).
-
-Il launcher **TeamViewer ID e Password** viene creato nella cartella desktop
-localizzata di admin all'accesso XFCE e apre `/mnt/teamviewer.txt` con Mousepad.
-Lo script applica modo 0755 e il checksum GVFS `metadata::xfce-exe-checksum`
-nella sessione utente, con tentativi per attendere la disponibilità dei metadati.
-Il file di assistenza è pubblicato atomicamente con proprietario root:admin e
-modo 0640; /mnt resta attraversabile (0755). Password e ID vengono mostrati
-solo dopo esito positivo di `teamviewer passwd`, ID numerico e IP disponibile.
-Durante preparazione o errore viene mostrato un messaggio senza credenziali.
-L'assegnazione dell'ID e l'esito della CLI non provano una connessione remota.
-
-Verifica statica del launcher basata sul [meccanismo di attendibilità XFCE](https://developer.xfce.org/libxfce4util/libxfce4util-GIO-Extensions.html).
-La creazione e l'attendibilità nel desktop richiedono ancora collaudo nella live.
-
-## Verifica TeamViewer senza daemon
-
-`python3 scripts/test-remote.py` esegue una copia dello script con percorsi
-spostati in una directory temporanea del progetto e comandi CLI simulati.
-Copre successo, colori ANSI/CR e ID separati da spazi, testo non numerico,
-ID nullo, output ambiguo, info con exit code fallito, password fallita,
-errore imprevisto e assenza IP. Verifica anche modo 0640, richiesta root:admin,
-assenza di credenziali nei flussi stdout/stderr e messaggi finali di errore.
-L'effettiva appartenenza al gruppo admin è verificabile solo al boot.
-
-Il parser accetta una sola riga etichettata `TeamViewer ID:`, con intero positivo
-anche separato da spazi/tab; rimuove colori ANSI CSI e CR. Rifiuta suffissi,
-righe multiple e output di un comando fallito. Formati o traduzioni diversi
-richiedono un campione reale della CLI; LC_ALL=C richiede l'output inglese.
-Il gestore EXIT sostituisce il file in caso di errore, mantenendo exit code,
-scrittura atomica e permessi. Non può gestire SIGKILL o un filesystem che
-impedisce la scrittura; questi casi richiedono il controllo del servizio.
-I test simulati non dimostrano assegnazione ID, validità reale della password,
-accettazione licenza o connessione TeamViewer: serve collaudo nella Live.
-
-## Preflight e futuro test virtuale
-
-`python3 scripts/preflight-live.py` controlla le relazioni tra configurazione,
-pacchetti, utente, servizi e launchers; `--host` aggiunge controlli in sola
-lettura su strumenti, metadati APT e CPU/KVM, senza avviare VM.
-Vedere [guida breve QEMU](docs/TEST-QEMU.md) per prerequisiti, limiti rilevati
-e procedura futura della sola Live, separata dal QCOW2 Windows.
-Nessuna build o VM è stata avviata per preparare questa guida.
-
-## Prima build TEST-1.0
-
-Autorizzata dal task corrente la compilazione della prima ISO e la prova QEMU
-TCG della sola Live. Il TXT di assistenza resta testo semplice: in caso di
-successo contiene soltanto ID TeamViewer, password di sessione e IP locale.
-Risultati del primo test in docs/TEST-1.0-RESULTS.md; diagnosi e nuovo test
-corretto in docs/DIAG-TEST-1.0.md e docs/TEST-1.0-R2-RESULTS.md.
+Stato delle verifiche e limiti: vedere VERIFICHE.md. Nessuna dichiarazione di funzionamento della live completa prima del collaudo della ISO finale.

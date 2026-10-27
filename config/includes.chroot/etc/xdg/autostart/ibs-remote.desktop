@@ -1,6 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=IBS assistenza remota
-Exec=conky -c /etc/conky/ibs.conf
-OnlyShowIn=XFCE;
-Terminal=false

@@ -1,7 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-cd /opt/ibs-recoverywin-1.0
-rm -f .task-watch/unattended-enabled
-systemctl --user disable --now ibs-task-watch.timer
-systemctl --user stop ibs-task-watch.service
-printf '%s\n' 'Timer disabilitato e servizio fermato. Stato e log conservati.'

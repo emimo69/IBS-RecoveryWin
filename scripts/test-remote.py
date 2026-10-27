@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 import unittest
 
-PROJECT = Path('/opt/ibs-recoverywin-1.0')
+PROJECT = Path('/opt/ibs-recoverywin-2.0')
 SOURCE = PROJECT / 'config/includes.chroot/usr/local/sbin/ibs-remote'
 
 class RemoteTests(unittest.TestCase):

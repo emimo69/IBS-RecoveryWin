@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+cd /opt/ibs/iso
+[ -s clipboard-integrated.sha256 ] || { echo 'WinRE non integrata: usare scripts/build-iso.sh dopo autorizzazione.' >&2; exit 1; }
+sha256sum --check clipboard-integrated.sha256

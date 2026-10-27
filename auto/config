@@ -1,10 +1,8 @@
 #!/bin/sh
 set -eu
-cd /opt/ibs-recoverywin-1.0
-lb config noauto \
- --mode debian --distribution trixie --architectures amd64 \
+cd "$(dirname "$0")/.."
+lb config noauto --mode debian --distribution trixie --architectures amd64 \
  --archive-areas "main contrib non-free non-free-firmware" \
- --binary-images iso-hybrid --debian-installer none \
- --bootloaders "syslinux grub-efi" \
- --bootappend-live "boot=live components hostname=ibs-recoverywin username=admin locales=it_IT.UTF-8 keyboard-layouts=it timezone=Europe/Rome" \
- "${@}"
+ --binary-images iso-hybrid --debian-installer none --bootloaders "syslinux grub-efi" \
+ --image-name IBS-RecoveryWin-2.0 \
+ --bootappend-live "boot=live components hostname=ibs-recoverywin-2 username=admin locales=it_IT.UTF-8 keyboard-layouts=it timezone=Europe/Rome" "$@"

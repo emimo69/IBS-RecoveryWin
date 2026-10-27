@@ -1,0 +1,37 @@
+#!/usr/bin/python3 -I
+"""Only privileged operation: exclusive opening of validated whole disks."""
+import os
+import pwd
+import sys
+sys.path.insert(0, '/usr/local/lib')
+from ibs2.disks import open_disks
+from ibs2.vm import launch
+
+def main():
+    if os.geteuid() != 0 or os.environ.get('SUDO_USER') != 'admin':
+        raise RuntimeError('Avviare dal desktop admin')
+    user = pwd.getpwnam('admin')
+    opened = open_disks(sys.argv[1:])
+    try:
+        display = os.environ.get('DISPLAY', ':0')
+        os.initgroups(user.pw_name, user.pw_gid)
+        os.setgid(user.pw_gid)
+        os.setuid(user.pw_uid)
+        os.environ.clear()
+        os.environ.update(HOME=user.pw_dir, USER='admin', LOGNAME='admin',
+                          PATH='/usr/local/bin:/usr/bin:/bin', LANG='it_IT.UTF-8',
+                          DISPLAY=display, XAUTHORITY=user.pw_dir + '/.Xauthority',
+                          XDG_RUNTIME_DIR=f'/run/user/{user.pw_uid}')
+        os.chdir(user.pw_dir)
+        return launch(opened)
+    finally:
+        for fd, disk in opened:
+            os.close(fd)
+            os.close(disk['_probe_fd'])
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except Exception as error:
+        print(f'WinRE: {error}', file=sys.stderr)
+        sys.exit(1)

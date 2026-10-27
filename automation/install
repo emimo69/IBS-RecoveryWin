@@ -1,9 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-cd /opt/ibs-recoverywin-1.0
-[[ $(id -u) != 0 ]] || { echo 'Usare un utente di sviluppo non root.' >&2; exit 1; }
-# User units only. No system files, sudo, enable or start.
-install -d -m 0700 "$HOME/.config/systemd/user"
-install -m 0644 automation/systemd/ibs-task-watch.{service,timer} "$HOME/.config/systemd/user/"
-systemctl --user daemon-reload
-printf '%s\n' 'Installato ma NON abilitato/avviato. Consultare automation/README.md.'

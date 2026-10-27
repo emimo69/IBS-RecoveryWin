@@ -1,0 +1,4 @@
+[Configuration]
+MiscCopyOnSelect=FALSE
+MiscShowUnsafePasteDialog=TRUE
+ShortcutsNoMnemonics=FALSE

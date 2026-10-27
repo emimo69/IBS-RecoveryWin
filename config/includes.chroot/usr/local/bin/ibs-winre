@@ -1,0 +1,40 @@
+#!/usr/bin/python3 -I
+import subprocess
+import sys
+sys.path.insert(0, '/usr/local/lib')
+from ibs2.disks import inventory
+
+def dialog(*args):
+    return subprocess.run(['zenity', *args], capture_output=True, text=True)
+
+def main():
+    disks = inventory()
+    available = [disk for disk in disks if not disk['blocked']]
+    paths = []
+    if available:
+        args = ['--list', '--checklist', '--title=Dischi per WinRE', '--width=850', '--height=420',
+                '--text=Seleziona i dischi da collegare in lettura e scrittura a WinRE. Nessuna selezione avvia solo WinRE.',
+                '--ok-label=Avvia WinRE', '--column=Usa', '--column=Disco', '--column=GB', '--column=Modello', '--column=Seriale',
+                '--print-column=2', '--separator=|']
+        for disk in available:
+            args.extend(['FALSE', disk['path'], f'{int(disk["size"]) / 10**9:.1f}',
+                         str(disk.get('model') or ''), str(disk.get('serial') or '')])
+        choice = dialog(*args)
+        if choice.returncode:
+            return 0
+        paths = [p for p in choice.stdout.strip().split('|') if p]
+        if len(paths) > 5:
+            dialog('--error', '--text=Seleziona al massimo cinque dischi.')
+            return 1
+    result = subprocess.run(['sudo', '-n', '/usr/local/libexec/ibs-winre-open', *paths],
+                            stderr=subprocess.PIPE, text=True)
+    if result.returncode:
+        dialog('--error', '--text=' + (result.stderr[-3000:] or 'Avvio WinRE fallito'))
+    return result.returncode
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except Exception as error:
+        dialog('--error', '--text=' + str(error))
+        sys.exit(1)

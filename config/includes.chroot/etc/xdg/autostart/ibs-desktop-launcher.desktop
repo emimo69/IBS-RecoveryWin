@@ -1,6 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Prepara launcher assistenza IBS
-Exec=/usr/local/bin/ibs-desktop-launcher
-OnlyShowIn=XFCE;
-Terminal=false

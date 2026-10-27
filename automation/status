@@ -1,6 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-cd /opt/ibs-recoverywin-1.0
-systemctl --user status ibs-task-watch.timer --no-pager || true
-if [[ -f .task-watch/unattended-enabled ]]; then echo 'Runner: unattended abilitato'; else echo 'Runner: solo poll'; fi
-if [[ -f .task-watch/runner-status.json ]]; then cat .task-watch/runner-status.json; fi
