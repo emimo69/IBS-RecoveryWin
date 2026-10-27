@@ -1,0 +1,14 @@
+#!/bin/sh
+# The password command restarts teamviewerd. Do not open the GUI mid-setup.
+set -eu
+for attempt in $(seq 1 160); do
+    if systemctl is-active --quiet ibs-remote.service &&
+       systemctl is-active --quiet teamviewerd.service; then
+        exec teamviewer
+    fi
+    if systemctl is-failed --quiet ibs-remote.service; then
+        exec mousepad /mnt/teamviewer.txt
+    fi
+    sleep 2
+done
+exec mousepad /mnt/teamviewer.txt

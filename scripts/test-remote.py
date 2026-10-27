@@ -12,14 +12,14 @@ SOURCE = PROJECT / 'config/includes.chroot/usr/local/sbin/ibs-remote'
 
 class RemoteTests(unittest.TestCase):
     def run_case(self, *, info='TeamViewer ID: 123456789', info_rc=0,
-                 password_rc=0, openssl_rc=0, ip=True, success=False):
+                 password_rc=0, password_output="ok", openssl_rc=0, ip=True, success=False, eula=True):
         with tempfile.TemporaryDirectory(prefix='.remote-test-', dir=PROJECT) as tmp:
             root = Path(tmp)
             bindir = root / 'bin'
             bindir.mkdir()
             conf = root / 'tvconf'
             conf.mkdir(parents=True)
-            (conf / 'global.conf').write_text('[int32] EulaAccepted = 1\n')
+            (conf / 'global.conf').write_text('[int32] EulaAccepted = ' + ('1' if eula else '0') + '\n')
             source = SOURCE.read_text().replace('/mnt', str(root / 'output')).replace('/etc/teamviewer', str(conf))
             self.assertNotIn('/mnt/teamviewer.txt', source)
             self.assertNotIn('/etc/teamviewer', source)
@@ -27,14 +27,17 @@ class RemoteTests(unittest.TestCase):
             script.write_text(source)
             commands = {
                 'teamviewer': '''case "$1" in
-passwd) printf '%s' "$2" > "$TEST_ROOT/password-set"; exit "$MOCK_PASSWORD_RC" ;;
+passwd) printf '%s' "$2" > "$TEST_ROOT/password-set"; printf '%s\\n' "$MOCK_PASSWORD_OUTPUT"; exit "$MOCK_PASSWORD_RC" ;;
 info) printf '%s\\n' "$MOCK_INFO"; exit "$MOCK_INFO_RC" ;;
 *) exit 99 ;;
 esac''',
                 'openssl': 'if [ "$MOCK_OPENSSL_RC" != 0 ]; then exit "$MOCK_OPENSSL_RC"; fi\nprintf test-session-password',
                 'ip': 'if [ "$MOCK_IP" = yes ]; then printf "2: eth0 inet 192.0.2.10/24 scope global eth0\\n"; fi',
                 'sleep': ':',
-                'systemctl': 'exit 0',
+                'systemctl': '''printf '%s\\n' "$1" >> "$TEST_ROOT/service-events"
+if [ "$1" = start ]; then
+    grep -Fqx '[int32] EulaAccepted = 1' "$TEST_ROOT/tvconf/global.conf"
+fi''',
                 'chown': '[ "$1" = root:admin ] || exit 99\nprintf root:admin > "$TEST_ROOT/owner-request"',
             }
             for name, body in commands.items():
@@ -43,7 +46,7 @@ esac''',
                 target.chmod(0o755)
             env = dict(os.environ, PATH=str(bindir) + ':' + os.environ['PATH'],
                        TEST_ROOT=tmp, MOCK_INFO=info, MOCK_INFO_RC=str(info_rc),
-                       MOCK_PASSWORD_RC=str(password_rc), MOCK_OPENSSL_RC=str(openssl_rc),
+                       MOCK_PASSWORD_RC=str(password_rc), MOCK_PASSWORD_OUTPUT=password_output, MOCK_OPENSSL_RC=str(openssl_rc),
                        MOCK_IP='yes' if ip else 'no')
             result = subprocess.run(['sh', str(script)], env=env, capture_output=True, timeout=30)
             txt = root / 'output/teamviewer.txt'
@@ -55,6 +58,7 @@ esac''',
             self.assertNotIn(b'test-session-password', result.stdout + result.stderr)
             if success:
                 self.assertEqual(result.returncode, 0)
+                self.assertEqual((root / 'service-events').read_text().splitlines()[:2], ['stop', 'start'])
                 self.assertIn('TeamViewer ID: 123456789\n', content)
                 self.assertIn('IP locale: 192.0.2.10', content)
                 self.assertIn('Password: ' + (root / 'password-set').read_text(), content)
@@ -64,6 +68,25 @@ esac''',
                 self.assertNotIn('test-session-password', content)
                 self.assertNotIn('inizializzazione in corso', content)
             return content
+
+    def test_ui_waits_for_services(self):
+        launcher = PROJECT / 'config/includes.chroot/usr/local/bin/ibs-teamviewer-ui'
+        with tempfile.TemporaryDirectory(prefix='.remote-test-', dir=PROJECT) as tmp:
+            root = Path(tmp)
+            commands = {
+                'systemctl': 'if [ "$1" = is-failed ]; then exit 1; fi\n[ -f "$TEST_ROOT/ready" ]',
+                'sleep': 'touch "$TEST_ROOT/ready"',
+                'teamviewer': '[ -f "$TEST_ROOT/ready" ] || exit 99\nprintf launched',
+                'mousepad': 'exit 98',
+            }
+            for name, body in commands.items():
+                target = root / name
+                target.write_text('#!/bin/sh\nset -eu\n' + body + '\n')
+                target.chmod(0o755)
+            env = dict(os.environ, PATH=tmp + ':' + os.environ['PATH'], TEST_ROOT=tmp)
+            result = subprocess.run(['sh', str(launcher)], env=env, capture_output=True, timeout=10)
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, b'launched')
 
     def test_vendor_stop_does_not_propagate_to_ibs(self):
         unit = configparser.ConfigParser(interpolation=None)
@@ -77,6 +100,9 @@ esac''',
 
     def test_success(self):
         self.run_case(success=True)
+
+    def test_eula_before_daemon_start(self):
+        self.run_case(eula=False, success=True)
 
     def test_ansi_spaces_cr(self):
         self.run_case(info='version\n  \x1b[1;32mTeamViewer ID:\x1b[0m 123 456 789\r\nstatus', success=True)
@@ -94,6 +120,14 @@ esac''',
 
     def test_password_failed(self):
         self.run_case(password_rc=1)
+
+    def test_password_rejected_with_success_exit(self):
+        for response in ("password too short - use at least 8 characters [E11]",
+                         "password not accepted - illegal char detected [E13]",
+                         "passwort invalid - validation failed [E14]",
+                         "unknown response", ""):
+            with self.subTest(response=response):
+                self.run_case(password_output=response)
 
     def test_unexpected_exit(self):
         self.assertIn('errore imprevisto', self.run_case(openssl_rc=7))

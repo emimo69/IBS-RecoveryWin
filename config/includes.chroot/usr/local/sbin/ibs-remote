@@ -27,17 +27,19 @@ publish 'TeamViewer: inizializzazione in corso, credenziali non ancora disponibi
 password=$(openssl rand -hex 8)
 # TeamViewer requires acceptance of its license before unattended use.
 # Keep any existing vendor settings intact.
+systemctl stop teamviewerd.service
 install -d -m 0755 /etc/teamviewer
 conf=/etc/teamviewer/global.conf
 touch "$conf"
 if ! grep -q '^\[int32\] EulaAccepted = 1$' "$conf"; then
     sed -i '/^\[int32\] EulaAccepted = /d' "$conf"
     printf '\n[int32] EulaAccepted = 1\n' >> "$conf"
-    systemctl restart teamviewerd.service
 fi
+systemctl start teamviewerd.service
 ready=false
 for attempt in $(seq 1 60); do
-    if teamviewer passwd "$password" >/dev/null 2>&1; then
+    if password_result=$(teamviewer passwd "$password" 2>&1) &&
+       printf '%s\n' "$password_result" | grep -qx 'ok'; then
         ready=true
         break
     fi

@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=TeamViewer
-Exec=teamviewer
+Exec=/usr/local/bin/ibs-teamviewer-ui
 OnlyShowIn=XFCE;
 Terminal=false
