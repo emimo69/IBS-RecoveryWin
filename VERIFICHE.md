@@ -20,9 +20,18 @@ Aggiornato il 27 ottobre 2026 dopo il collaudo della live candidata.
 - Firefox ESR è stato avviato nella sessione grafica; la finestra ha caricato `www.debian.org` con titolo “Debian -- The Universal Operating System”. Una richiesta HTTPS a `https://www.debian.org` ha restituito HTTP 200.
 - La ISO candidata è stata generata in modalità BIOS/UEFI. SHA256: `3bc8d8b659bddeb984d06208a1829631066ca4f467ecb71904672dc192a5e5ea`.
 
+## Prova fisica WinRE e ripristino UEFI
+
+- Sul PC di test avviato in UEFI, il collegamento “Avvia WinRE” ha aperto WinRE dopo aver selezionato Italiano e premuto Invio al menu di boot UEFI.
+- Il helper ha aperto in esclusiva `/dev/sda` in RW e QEMU/KVM l’ha ricevuto tramite fdset come dispositivo a blocchi. Il precedente errore QEMU su `/dev/fdset/1` non si è ripresentato. Nessun altro disco era collegato alla VM.
+- Incolla nella console WinRE verificato con una sequenza multilinea; DiskPart ha elencato Disco 0 GPT da 238 GB. La EFI FAT32 da 200 MB è stata identificata come volume 2; Windows è sul volume `C:` da 237 GB.
+- Prima della riparazione `C:\Windows\System32\winload.efi` esisteva, mentre il BCD EFI non era presente nel percorso atteso. `bcdboot C:\Windows /s S: /f UEFI /v` è terminato con codice 0 dopo aver assegnato `S:` alla EFI.
+- `bcdedit` sul BCD ricreato mostra Windows Boot Manager su `S:` con `\EFI\Microsoft\Boot\bootmgfw.efi` e il loader Windows 11 su `C:` con `\Windows\System32\winload.efi`. Non è stata formattata la EFI né modificata la partizione Windows.
+- Il PC è stato riavviato su richiesta. Dopo il riavvio l’indirizzo MAC è comparso nella cache ARP, ma SSH non è tornato disponibile e non è stato possibile confermare da remoto l’arrivo al desktop di Windows.
+
 ## Limiti
 
-- Nessun disco fisico è stato usato nei test di sviluppo. La prova autorizzata su un dispositivo fisico selezionato va eseguita dall’utente nel proprio ambiente.
+- Il test fisico ha usato solo il disco di prova `/dev/sda`; non è stato eseguito un collaudo di scrittura su altri dischi.
 - L’accesso TeamViewer da un client esterno non è stato provato; la verifica live conferma servizio, generazione e pubblicazione locale delle credenziali.
 - Il test QEMU del backend 4Kn scrive sul loop, ma il riconoscimento del disco 4Kn dentro WinRE non è stato verificato.
 - La prova WinRE ha collaudato partizionamento e scritture su EFI/NTFS, non la riparazione dell’avvio di una specifica installazione Windows.
