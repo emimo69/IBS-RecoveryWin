@@ -1,4 +1,9 @@
-# IBS-RecoveryWin 2.0
+# IBS-RecoveryWin 2.1 Codex — candidata separata
+
+Questa copia aggiunge il collegamento **IBS – Codex AI** e Codex CLI nativo,
+con autenticazione ChatGPT personale temporanea e logout automatico.
+La ISO 2.0 corrente resta invariata. Dettagli, limiti, preparazione e collaudo:
+[docs/codex-ai.md](docs/codex-ai.md). Nessuna build ISO avviata per questi test.
 
 Live Debian Trixie amd64 con XFCE italiano, login automatico e SSH attivo: utente `admin`, password `admin`.
 Progetto separato dalla 1.0. I requisiti approvati sono in REQUISITI.md.

@@ -4,5 +4,5 @@ cd "$(dirname "$0")/.."
 lb config noauto --mode debian --distribution trixie --architectures amd64 \
  --archive-areas "main contrib non-free non-free-firmware" \
  --binary-images iso-hybrid --debian-installer none --bootloaders "syslinux grub-efi" \
- --image-name IBS-RecoveryWin-2.0 \
+ --image-name IBS-RecoveryWin-2.1-Codex \
  --bootappend-live "boot=live components hostname=ibs-recoverywin-2 username=admin locales=it_IT.UTF-8 keyboard-layouts=it timezone=Europe/Rome" "$@"

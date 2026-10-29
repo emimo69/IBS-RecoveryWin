@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+# Prepared before live-build, with the pinned upstream archive SHA-256.
+test -f /usr/local/share/ibs-codex/codex-binary.sha256 || {
+    echo 'Manca Codex verificato: eseguire scripts/prepare-codex.py nella copia nuova.' >&2
+    exit 1
+}
+sha256sum --check /usr/local/share/ibs-codex/codex-binary.sha256
+test -s /usr/local/share/licenses/codex/LICENSE
+test -s /usr/local/share/licenses/codex/NOTICE
+chmod 0755 /opt/ibs/codex/codex /opt/ibs/codex/codex-code-mode-host /usr/local/bin/codex /usr/local/bin/ibs-codex-ai
+chmod 0755 /etc/skel/Desktop/ibs-codex-ai.desktop
+# A prepared image must never contain a technician's authentication/session.
+for base in /root /home /etc/skel /opt/ibs; do
+    if find "$base" -type f \( -name auth.json -o -name auth.json.bak -o -name codex-login.log \) -print -quit 2>/dev/null | grep -q .; then
+        echo 'File autenticazione Codex trovato nella sorgente: build bloccata.' >&2
+        exit 1
+    fi
+done

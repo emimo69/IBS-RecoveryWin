@@ -14,6 +14,13 @@ __pycache__/
 /config/source
 /.lock
 /.remote-test-*/
+/config/includes.chroot/opt/ibs/codex/codex
+/config/includes.chroot/opt/ibs/codex/codex-code-mode-host
+/config/includes.chroot/usr/local/share/ibs-codex/codex-binary.sha256
+/config/includes.chroot/usr/local/share/licenses/codex/
+auth.json
+auth.json.bak
+codex-login.log
 *.exe
 /config/includes.chroot/opt/ibs/iso/clipboard-integrated.sha256
 /config/hooks/normal/[1-9]*.hook.chroot

@@ -1,0 +1,7 @@
+* text=auto
+*.py text eol=lf
+*.sh text eol=lf
+*.desktop text eol=lf
+*.hook.chroot text eol=lf
+config/includes.chroot/usr/local/bin/* text eol=lf
+config/includes.chroot/usr/local/libexec/* text eol=lf

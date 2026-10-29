@@ -1,0 +1,14 @@
+{
+  "version": "0.165.0",
+  "tag": "rust-v0.165.0",
+  "asset": "codex-x86_64-unknown-linux-musl.tar.gz",
+  "url": "https://github.com/openai/codex/releases/download/rust-v0.165.0/codex-x86_64-unknown-linux-musl.tar.gz",
+  "sha256": "be635d3486a5bd060d0fff582ae6d30160280c31344dd85719707fa920e187f0",
+  "bytes": 115837472,
+  "code_mode_host": {
+    "asset": "codex-code-mode-host-x86_64-unknown-linux-musl.tar.gz",
+    "url": "https://github.com/openai/codex/releases/download/rust-v0.165.0/codex-code-mode-host-x86_64-unknown-linux-musl.tar.gz",
+    "sha256": "9577b09b2a546eeb3da8a09807de6d58fbaa207755256390113772ea4f05235e",
+    "bytes": 28137324
+  }
+}

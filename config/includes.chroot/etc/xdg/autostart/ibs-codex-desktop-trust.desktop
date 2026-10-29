@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=IBS Codex desktop shortcut
+Exec=/usr/bin/python3 /usr/local/libexec/ibs-codex-desktop-trust
+OnlyShowIn=XFCE;
+NoDisplay=true
+Terminal=false
+StartupNotify=false

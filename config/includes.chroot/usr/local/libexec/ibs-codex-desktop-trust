@@ -1,0 +1,16 @@
+#!/usr/bin/python3
+"""Mark only the shipped IBS Codex desktop entry as executable/trusted."""
+import hashlib
+import os
+from pathlib import Path
+import subprocess
+
+source = Path('/etc/skel/Desktop/ibs-codex-ai.desktop')
+target = Path.home() / 'Desktop/ibs-codex-ai.desktop'
+if (source.is_file() and target.is_file() and not target.is_symlink()
+        and source.read_bytes() == target.read_bytes()
+        and target.stat().st_uid == os.getuid()):
+    target.chmod(0o755)
+    subprocess.run(['gio', 'set', '-t', 'string', str(target),
+                    'metadata::xfce-exe-checksum', hashlib.sha256(target.read_bytes()).hexdigest()],
+                   check=True, timeout=10)

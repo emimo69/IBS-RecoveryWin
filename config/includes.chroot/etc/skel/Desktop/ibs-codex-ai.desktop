@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=IBS – Codex AI
+Comment=Assistente AI con account ChatGPT personale e logout automatico
+Exec=xfce4-terminal --disable-server --title="IBS – Codex AI" --command=/usr/local/bin/ibs-codex-ai
+Icon=utilities-terminal
+Terminal=false
+StartupNotify=false
+Categories=System;Development;

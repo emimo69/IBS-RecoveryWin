@@ -1,0 +1,10 @@
+#!/usr/bin/python3
+"""Interactive, per-launch ChatGPT authentication for the IBS live desktop."""
+import importlib.util
+from pathlib import Path
+
+path = Path('/usr/local/lib/ibs-codex/session.py')
+spec = importlib.util.spec_from_file_location('ibs_codex_session', path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+raise SystemExit(module.main())
